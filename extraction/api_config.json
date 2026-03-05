@@ -1,0 +1,28 @@
+{
+"datasets":[
+{
+"name": "billing_payments",
+"url": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_billing_payments/parquet/default/train"
+},
+{
+"name": "commercial_industries_consumption",
+"url": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_commercial_industrial_consumption/parquet/default/train"
+},
+{
+"name": "customers_complaint",
+"url":"https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_customer_complaints/parquet/default/train"
+},
+{
+"name": "grid_load",
+"url": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_grid_load/parquet/default/train"
+},
+{
+"name": "power_flow",
+"url":"https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_power_flow/parquet/default/train"
+},
+{
+"name": "retail_tariffs",
+"url": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_retail_tariffs/parquet/default/train"
+}
+]
+}

@@ -1,0 +1,399 @@
+{
+  "generated_at": "2026-01-29T00:10:36.222155Z",
+  "datasets": [
+    {
+      "dataset_name": "billing_payments",
+      "api_endpoint": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_billing_payments/parquet/default/train",
+      "file_count": 1,
+      "total_rows": 200000,
+      "files": [
+        {
+          "url": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_billing_payments/parquet/default/train/0.parquet",
+          "filename": "0.parquet",
+          "size_bytes": 0,
+          "num_rows": 200000,
+          "num_columns": 10,
+          "num_row_groups": 1,
+          "columns": [
+            {
+              "name": "customer_id",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "disco",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "billing_month",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "tariff_band",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "kwh",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "price_ngn_kwh",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "amount_billed_ngn",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "amount_paid_ngn",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "paid_on_time",
+              "type": "bool",
+              "nullable": true
+            },
+            {
+              "name": "arrears_ngn",
+              "type": "double",
+              "nullable": true
+            }
+          ],
+          "validation_status": "success"
+        }
+      ]
+    },
+    {
+      "dataset_name": "commercial_industries_consumption",
+      "api_endpoint": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_commercial_industrial_consumption/parquet/default/train",
+      "file_count": 1,
+      "total_rows": 220000,
+      "files": [
+        {
+          "url": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_commercial_industrial_consumption/parquet/default/train/0.parquet",
+          "filename": "0.parquet",
+          "size_bytes": 0,
+          "num_rows": 220000,
+          "num_columns": 11,
+          "num_row_groups": 1,
+          "columns": [
+            {
+              "name": "site_id",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "site_type",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "disco",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "feeder_id",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "timestamp",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "active_power_kw",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "reactive_power_kvar",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "pf",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "energy_kwh",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "voltage_ll_v",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "current_a",
+              "type": "double",
+              "nullable": true
+            }
+          ],
+          "validation_status": "success"
+        }
+      ]
+    },
+    {
+      "dataset_name": "customers_complaint",
+      "api_endpoint": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_customer_complaints/parquet/default/train",
+      "file_count": 1,
+      "total_rows": 100000,
+      "files": [
+        {
+          "url": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_customer_complaints/parquet/default/train/0.parquet",
+          "filename": "0.parquet",
+          "size_bytes": 0,
+          "num_rows": 100000,
+          "num_columns": 9,
+          "num_row_groups": 1,
+          "columns": [
+            {
+              "name": "ticket_id",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "customer_id",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "disco",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "category",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "channel",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "created_time",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "resolved_time",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "sla_met",
+              "type": "bool",
+              "nullable": true
+            },
+            {
+              "name": "outcome",
+              "type": "string",
+              "nullable": true
+            }
+          ],
+          "validation_status": "success"
+        }
+      ]
+    },
+    {
+      "dataset_name": "grid_load",
+      "api_endpoint": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_grid_load/parquet/default/train",
+      "file_count": 1,
+      "total_rows": 200000,
+      "files": [
+        {
+          "url": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_grid_load/parquet/default/train/0.parquet",
+          "filename": "0.parquet",
+          "size_bytes": 0,
+          "num_rows": 200000,
+          "num_columns": 10,
+          "num_row_groups": 1,
+          "columns": [
+            {
+              "name": "timestamp",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "disco",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "substation_id",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "voltage_level_kv",
+              "type": "int64",
+              "nullable": true
+            },
+            {
+              "name": "load_mw",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "forecast_mw",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "temp_c",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "humidity",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "frequency_hz",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "nullable": true
+            }
+          ],
+          "validation_status": "success"
+        }
+      ]
+    },
+    {
+      "dataset_name": "power_flow",
+      "api_endpoint": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_power_flow/parquet/default/train",
+      "file_count": 1,
+      "total_rows": 200000,
+      "files": [
+        {
+          "url": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_power_flow/parquet/default/train/0.parquet",
+          "filename": "0.parquet",
+          "size_bytes": 0,
+          "num_rows": 200000,
+          "num_columns": 10,
+          "num_row_groups": 1,
+          "columns": [
+            {
+              "name": "timestamp",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "disco",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "from_substation",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "to_substation",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "line_id",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "from_kv",
+              "type": "int64",
+              "nullable": true
+            },
+            {
+              "name": "to_kv",
+              "type": "int64",
+              "nullable": true
+            },
+            {
+              "name": "p_mw",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "q_mvar",
+              "type": "double",
+              "nullable": true
+            },
+            {
+              "name": "pf",
+              "type": "double",
+              "nullable": true
+            }
+          ],
+          "validation_status": "success"
+        }
+      ]
+    },
+    {
+      "dataset_name": "retail_tariffs",
+      "api_endpoint": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_retail_tariffs/parquet/default/train",
+      "file_count": 1,
+      "total_rows": 90000,
+      "files": [
+        {
+          "url": "https://huggingface.co/api/datasets/electricsheepafrica/nigerian_energy_and_utilities_retail_tariffs/parquet/default/train/0.parquet",
+          "filename": "0.parquet",
+          "size_bytes": 0,
+          "num_rows": 90000,
+          "num_columns": 6,
+          "num_row_groups": 1,
+          "columns": [
+            {
+              "name": "as_of_date",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "disco",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "customer_class",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "tariff_band",
+              "type": "string",
+              "nullable": true
+            },
+            {
+              "name": "hour",
+              "type": "int64",
+              "nullable": true
+            },
+            {
+              "name": "price_ngn_kwh",
+              "type": "double",
+              "nullable": true
+            }
+          ],
+          "validation_status": "success"
+        }
+      ]
+    }
+  ]
+}

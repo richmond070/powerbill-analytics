@@ -1,4 +1,5 @@
 databricks/dbfs_uploder.py
 .pytest_cache
 databricks/databricks.cfg
-.env.env
+.env
+.vscode/

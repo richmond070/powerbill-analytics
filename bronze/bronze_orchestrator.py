@@ -148,8 +148,7 @@ class BronzeLayerOrchestrator:
 
         for i, dataset in enumerate(datasets_to_process, 1):
             dataset_name = dataset["dataset_name"]
-            print(
-                f"\n[{i}/{len(datasets_to_process)}] Processing: {dataset_name}")
+            print(f"\n[{i}/{len(datasets_to_process)}] Processing: {dataset_name}")
             print(f"   Rows: {dataset['total_rows']:,}")
 
             # ── Observability: generate trace_id ────
@@ -164,8 +163,7 @@ class BronzeLayerOrchestrator:
             )
             print(f"   Strategy:   {partition_config.strategy.value}")
             if partition_config.partition_columns:
-                print(
-                    f"   Partitions: {', '.join(partition_config.partition_columns)}")
+                print(f"   Partitions: {', '.join(partition_config.partition_columns)}")
             print(f"   Reason:     {partition_config.reason}")
 
             # ── Observability: audit RUNNING ────
@@ -190,9 +188,7 @@ class BronzeLayerOrchestrator:
                 sql_type="CREATE_TABLE",
             )
 
-            sql_file = os.path.join(
-                tempfile.gettempdir(),
-                f"bronze_{dataset_name}_create.sql")
+            sql_file = os.path.join(tempfile.gettempdir(), f"bronze_{dataset_name}_create.sql")
             with open(sql_file, "w") as f:
                 f.write(create_sql)
             print(f"   SQL saved: {sql_file}")
@@ -363,9 +359,7 @@ class BronzeLayerOrchestrator:
                 sql_type=sql_type,
             )
 
-            sql_file = os.path.join(
-                tempfile.gettempdir(),
-                f"bronze_{dataset_name}_ingest.sql")
+            sql_file = os.path.join(tempfile.gettempdir(), f"bronze_{dataset_name}_ingest.sql")
             with open(sql_file, "w") as f:
                 f.write(ingest_sql)
             print(f"   SQL saved: {sql_file}")
@@ -430,8 +424,7 @@ class BronzeLayerOrchestrator:
 
                 if success:
                     row_info = f"{result.row_count:,} rows" if result.row_count else "completed"
-                    print(
-                        f"   ✓ Ingestion complete: {row_info} ({result.duration_ms}ms)")
+                    print(f"   ✓ Ingestion complete: {row_info} ({result.duration_ms}ms)")
                 else:
                     print(f"   ✗ Failed: {result.error_message}")
 
@@ -479,13 +472,11 @@ class BronzeLayerOrchestrator:
 
         for i, dataset in enumerate(datasets_to_process, 1):
             dataset_name = dataset["dataset_name"]
-            print(
-                f"\n[{i}/{len(datasets_to_process)}] Optimizing: {dataset_name}")
+            print(f"\n[{i}/{len(datasets_to_process)}] Optimizing: {dataset_name}")
 
             trace_id = uuid.uuid4()
             blog = BronzeLogger(dataset_name)
-            optimize_sql = self.sql_generator.generate_optimization_sql(
-                dataset_name)
+            optimize_sql = self.sql_generator.generate_optimization_sql(dataset_name)
 
             blog.log_sql_generated(
                 trace_id=trace_id,
@@ -508,8 +499,7 @@ class BronzeLayerOrchestrator:
                     duration_ms=result.duration_ms,
                 )
                 if result.status == "SUCCEEDED":
-                    print(
-                        f"   ✓ Optimization complete ({result.duration_ms}ms)")
+                    print(f"   ✓ Optimization complete ({result.duration_ms}ms)")
                 else:
                     print(f"   ✗ Failed: {result.error_message}")
             except Exception as exc:
@@ -548,10 +538,7 @@ class BronzeLayerOrchestrator:
 
         try:
             self.create_bronze_tables(datasets=datasets, dry_run=dry_run)
-            self.ingest_data(
-                datasets=datasets,
-                download=download,
-                dry_run=dry_run)
+            self.ingest_data(datasets=datasets, download=download, dry_run=dry_run)
             if optimize:
                 self.optimize_tables(datasets=datasets, dry_run=dry_run)
 
@@ -578,8 +565,7 @@ class BronzeLayerOrchestrator:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _get_datasets_to_process(
-            self, dataset_names: Optional[List[str]]) -> List[Dict]:
+    def _get_datasets_to_process(self, dataset_names: Optional[List[str]]) -> List[Dict]:
         """Return contract datasets filtered by the optional name list."""
         all_datasets = self.contract["datasets"]
         if dataset_names is None:

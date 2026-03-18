@@ -54,8 +54,7 @@ class ParquetValidator:
             # Extract column information
             columns = []
             for field in schema:
-                columns.append({"name": field.name, "type": str(
-                    field.type), "nullable": field.nullable})
+                columns.append({"name": field.name, "type": str(field.type), "nullable": field.nullable})
 
             metadata = {
                 "filename": filename,
@@ -68,16 +67,11 @@ class ParquetValidator:
             }
 
             logger.info(
-                f"✓ Validated {filename}: "
-                f"{metadata['num_rows']:,} rows, "
-                f"{metadata['num_columns']} columns")
+                f"✓ Validated {filename}: " f"{metadata['num_rows']:,} rows, " f"{metadata['num_columns']} columns"
+            )
 
             return metadata
 
         except Exception as e:
             logger.error(f"✗ Validation failed for {filename}: {str(e)}")
-            return {
-                "filename": filename,
-                "url": url,
-                "validation_status": "failed",
-                "error": str(e)}
+            return {"filename": filename, "url": url, "validation_status": "failed", "error": str(e)}

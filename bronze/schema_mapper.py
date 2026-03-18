@@ -49,9 +49,7 @@ class SchemaMapper:
         """
         sql_type = cls.TYPE_MAP.get(contract_type.lower())
         if sql_type is None:
-            raise ValueError(
-                f"Unrecognized type '{contract_type}'. "
-                f"Allowed types: {list(cls.TYPE_MAP.keys())}")
+            raise ValueError(f"Unrecognized type '{contract_type}'. " f"Allowed types: {list(cls.TYPE_MAP.keys())}")
         return sql_type
 
     @classmethod
@@ -92,8 +90,7 @@ class SchemaMapper:
         for col_meta in columns:
             col_schema = cls.build_column_schema(col_meta)
             nullable_clause = "" if col_schema.nullable else " NOT NULL"
-            ddl_parts.append(
-                f"{col_schema.name} {col_schema.sql_type}{nullable_clause}")
+            ddl_parts.append(f"{col_schema.name} {col_schema.sql_type}{nullable_clause}")
 
         return ",\n    ".join(ddl_parts)
 

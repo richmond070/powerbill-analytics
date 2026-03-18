@@ -51,10 +51,13 @@ jobs:
             --ignore=E501,W503,E203 \
             --exclude=__pycache__,.venv
 
-      - name: black — format check
+      - name: black — format and commit
         run: |
-          black --check bronze/ extraction/ runners/ \
-            --line-length=120
+          black bronze/ extraction/ runners/ --line-length=120
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet || git commit -am "style: auto-apply black formatting [skip ci]"
+          git push
 
 
 # ===========================================================================

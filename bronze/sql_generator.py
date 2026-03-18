@@ -125,10 +125,8 @@ class BronzeSQLGenerator:
         self.staging_location = staging_location
 
     def generate_create_table_sql(
-            self,
-            dataset_metadata: Dict,
-            partition_config: PartitionConfig,
-            timestamp: str) -> str:
+        self, dataset_metadata: Dict, partition_config: PartitionConfig, timestamp: str
+    ) -> str:
         """
         Generate CREATE TABLE SQL from metadata
 
@@ -147,8 +145,7 @@ class BronzeSQLGenerator:
         column_ddl = SchemaMapper.generate_ddl_columns(columns)
 
         # Generate partition clause
-        partition_clause = PartitionHeuristics.generate_partition_clause(
-            partition_config)
+        partition_clause = PartitionHeuristics.generate_partition_clause(partition_config)
 
         # Table location
         table_location = f"{self.base_location}/{dataset_name}"
@@ -170,10 +167,8 @@ class BronzeSQLGenerator:
         return sql
 
     def generate_ingestion_sql(
-            self,
-            dataset_metadata: Dict,
-            partition_config: PartitionConfig,
-            use_merge: bool = False) -> str:
+        self, dataset_metadata: Dict, partition_config: PartitionConfig, use_merge: bool = False
+    ) -> str:
         """
         Generate ingestion SQL (COPY INTO or MERGE)
 
@@ -193,8 +188,7 @@ class BronzeSQLGenerator:
         select_columns = ",\n        ".join(column_names)
 
         # Generate hash columns (for deduplication)
-        hash_columns = ", ".join(
-            [f"CAST({col} AS STRING)" for col in column_names])
+        hash_columns = ", ".join([f"CAST({col} AS STRING)" for col in column_names])
 
         # Source and target paths
         source_path = f"{self.staging_location}/{dataset_name}/*.parquet"
@@ -204,8 +198,7 @@ class BronzeSQLGenerator:
 
         if use_merge or partition_config.use_append_only:
             # Use MERGE for large datasets or when deduplication needed
-            enforced_schema = SchemaMapper.generate_spark_schema_string(
-                columns)
+            enforced_schema = SchemaMapper.generate_spark_schema_string(columns)
 
             sql = BronzeSQLTemplate.MERGE_UPSERT_TEMPLATE.format(
                 dataset_name=dataset_name,
@@ -275,10 +268,8 @@ if __name__ == "__main__":
 
     # Determine partition strategy
     partition_config = PartitionHeuristics.determine_strategy(
-        test_metadata["dataset_name"],
-        test_metadata["total_rows"],
-        test_metadata["files"][0]["columns"],
-        1)
+        test_metadata["dataset_name"], test_metadata["total_rows"], test_metadata["files"][0]["columns"], 1
+    )
 
     # Generate SQL
     generator = BronzeSQLGenerator()
@@ -286,13 +277,11 @@ if __name__ == "__main__":
     print("=" * 80)
     print("CREATE TABLE SQL:")
     print("=" * 80)
-    create_sql = generator.generate_create_table_sql(
-        test_metadata, partition_config, datetime.utcnow().isoformat())
+    create_sql = generator.generate_create_table_sql(test_metadata, partition_config, datetime.utcnow().isoformat())
     print(create_sql)
 
     print("\n" + "=" * 80)
     print("INGESTION SQL:")
     print("=" * 80)
-    ingest_sql = generator.generate_ingestion_sql(
-        test_metadata, partition_config)
+    ingest_sql = generator.generate_ingestion_sql(test_metadata, partition_config)
     print(ingest_sql)

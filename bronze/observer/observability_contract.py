@@ -101,10 +101,11 @@ class ObservabilityContractParser:
         obs = dataset_metadata.get("observability", {})
 
         return DatasetObservabilityRules(
-            dataset_name=name, alert_on_zero_rows=obs.get(
-                "alert_on_zero_rows", True), max_expected_duration_sec=obs.get(
-                "max_expected_duration_sec", 300), expected_min_rows=obs.get(
-                "expected_min_rows", 1), )
+            dataset_name=name,
+            alert_on_zero_rows=obs.get("alert_on_zero_rows", True),
+            max_expected_duration_sec=obs.get("max_expected_duration_sec", 300),
+            expected_min_rows=obs.get("expected_min_rows", 1),
+        )
 
     @staticmethod
     def parse_all(contract: Dict) -> Dict[str, DatasetObservabilityRules]:
@@ -117,8 +118,7 @@ class ObservabilityContractParser:
         Returns:
             Mapping of dataset_name → DatasetObservabilityRules.
         """
-        return {d["dataset_name"]: ObservabilityContractParser.parse(
-            d) for d in contract.get("datasets", [])}
+        return {d["dataset_name"]: ObservabilityContractParser.parse(d) for d in contract.get("datasets", [])}
 
 
 # ---------------------------------------------------------------------------
@@ -161,27 +161,33 @@ class ObservabilityRuleEvaluator:
         # --- Rule 1: zero rows when not expected ---
         if self.rules.alert_on_zero_rows and rows == 0:
             v = RuleViolation(
-                rule="zero_rows", detail=(
-                    f"Dataset '{self.rules.dataset_name}' ingested 0 rows. "
-                    "alert_on_zero_rows is enabled."), )
+                rule="zero_rows",
+                detail=(f"Dataset '{self.rules.dataset_name}' ingested 0 rows. " "alert_on_zero_rows is enabled."),
+            )
             violations.append(v)
             self._blog.log_observability_warning(trace_id, v.rule, v.detail)
 
         # --- Rule 2: rows below expected minimum ---
         elif rows < self.rules.expected_min_rows:
             v = RuleViolation(
-                rule="low_row_count", detail=(
+                rule="low_row_count",
+                detail=(
                     f"Dataset '{self.rules.dataset_name}' ingested {rows:,} rows, "
-                    f"below expected minimum of {self.rules.expected_min_rows:,}."), )
+                    f"below expected minimum of {self.rules.expected_min_rows:,}."
+                ),
+            )
             violations.append(v)
             self._blog.log_observability_warning(trace_id, v.rule, v.detail)
 
         # --- Rule 3: duration exceeded maximum ---
         if duration_sec > self.rules.max_expected_duration_sec:
             v = RuleViolation(
-                rule="max_duration_exceeded", detail=(
+                rule="max_duration_exceeded",
+                detail=(
                     f"Dataset '{self.rules.dataset_name}' took {duration_sec:.1f}s, "
-                    f"exceeding limit of {self.rules.max_expected_duration_sec}s."), )
+                    f"exceeding limit of {self.rules.max_expected_duration_sec}s."
+                ),
+            )
             violations.append(v)
             self._blog.log_observability_warning(trace_id, v.rule, v.detail)
 

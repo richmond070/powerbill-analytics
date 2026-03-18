@@ -65,11 +65,8 @@ class PartitionHeuristics:
 
     @classmethod
     def determine_strategy(
-            cls,
-            dataset_name: str,
-            total_rows: int,
-            columns: List[Dict],
-            file_count: int) -> PartitionConfig:
+        cls, dataset_name: str, total_rows: int, columns: List[Dict], file_count: int
+    ) -> PartitionConfig:
         """
         Determine optimal partition strategy based on dataset characteristics
 
@@ -106,9 +103,7 @@ class PartitionHeuristics:
                 # Best case: time + category partitioning
                 return PartitionConfig(
                     strategy=PartitionStrategy.HYBRID,
-                    partition_columns=[
-                        time_columns[0],
-                        category_columns[0]],
+                    partition_columns=[time_columns[0], category_columns[0]],
                     reason=f"Large dataset ({total_rows:,} rows) with time and category columns. "
                     f"Hybrid partitioning for optimal query performance.",
                     use_append_only=True,
@@ -117,8 +112,7 @@ class PartitionHeuristics:
                 # Time-based partitioning
                 return PartitionConfig(
                     strategy=PartitionStrategy.TIME_BASED,
-                    partition_columns=[
-                        time_columns[0]],
+                    partition_columns=[time_columns[0]],
                     reason=f"Large dataset ({total_rows:,} rows) with time column. "
                     f"Time-based partitioning for incremental loads.",
                     use_append_only=True,
@@ -127,8 +121,7 @@ class PartitionHeuristics:
                 # Category-based partitioning
                 return PartitionConfig(
                     strategy=PartitionStrategy.CATEGORY_BASED,
-                    partition_columns=[
-                        category_columns[0]],
+                    partition_columns=[category_columns[0]],
                     reason=f"Large dataset ({total_rows:,} rows) with category column. "
                     f"Category-based partitioning for filtered queries.",
                     use_append_only=True,
@@ -138,8 +131,7 @@ class PartitionHeuristics:
         if time_columns:
             return PartitionConfig(
                 strategy=PartitionStrategy.TIME_BASED,
-                partition_columns=[
-                    time_columns[0]],
+                partition_columns=[time_columns[0]],
                 reason=f"Medium dataset ({total_rows:,} rows). Time-based partitioning.",
                 use_append_only=total_rows >= 200_000,
             )
@@ -161,12 +153,7 @@ class PartitionHeuristics:
                 time_cols.append(col)
 
         # Prioritize certain patterns
-        priority_order = [
-            "timestamp",
-            "created_time",
-            "billing_month",
-            "as_of_date",
-            "date"]
+        priority_order = ["timestamp", "created_time", "billing_month", "as_of_date", "date"]
         for priority in priority_order:
             if priority in time_cols:
                 time_cols.insert(0, time_cols.pop(time_cols.index(priority)))
@@ -188,8 +175,7 @@ class PartitionHeuristics:
         return cat_cols
 
     @classmethod
-    def generate_partition_clause(
-            cls, partition_config: PartitionConfig) -> str:
+    def generate_partition_clause(cls, partition_config: PartitionConfig) -> str:
         """
         Generate PARTITIONED BY clause for SQL
 

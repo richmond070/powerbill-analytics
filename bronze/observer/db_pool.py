@@ -60,16 +60,11 @@ def _build_dsn(config_path: str = "databricks/databricks.cfg") -> str:
                 port = port or parser.get(section, "port", fallback="5432")
                 dbname = dbname or parser.get(section, "dbname", fallback=None)
                 user = user or parser.get(section, "user", fallback=None)
-                password = password or parser.get(
-                    section, "password", fallback=None)
+                password = password or parser.get(section, "password", fallback=None)
 
     missing = [
-        k for k,
-        v in {
-            "PG_HOST": host,
-            "PG_DB": dbname,
-            "PG_USER": user,
-            "PG_PASSWORD": password}.items() if not v]
+        k for k, v in {"PG_HOST": host, "PG_DB": dbname, "PG_USER": user, "PG_PASSWORD": password}.items() if not v
+    ]
     if missing:
         raise EnvironmentError(
             f"PostgreSQL connection config incomplete. Missing: {missing}. "

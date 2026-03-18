@@ -3,3 +3,4 @@ databricks/databricks.cfg
 .env
 .vscode/
 databricks/dbfs_uploder.py
+airflow/logs/

@@ -72,8 +72,7 @@ from bronze.bronze_orchestrator import BronzeLayerOrchestrator  # noqa: E402
 # ---------------------------------------------------------------------------
 # Step 2 — Path constants (all relative to project root)
 # ---------------------------------------------------------------------------
-DEFAULT_CONTRACT_PATH = PROJECT_ROOT / \
-    "bronze_metadata" / "bronze_ingestion_contract.json"
+DEFAULT_CONTRACT_PATH = PROJECT_ROOT / "bronze_metadata" / "bronze_ingestion_contract.json"
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "databricks" / "databricks.cfg"
 
 
@@ -191,7 +190,8 @@ def parse_args() -> argparse.Namespace:
         default=False,
         help=(
             "Skip downloading raw parquet files and use previously staged files. "
-            "Useful when re-running ingestion after a partial failure."),
+            "Useful when re-running ingestion after a partial failure."
+        ),
     )
 
     parser.add_argument(
@@ -202,9 +202,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--schema",
-        default=os.getenv(
-            "DATABRICKS_SCHEMA",
-            "bronze"),
+        default=os.getenv("DATABRICKS_SCHEMA", "bronze"),
         help="Databricks schema / database name. [env: DATABRICKS_SCHEMA] (default: bronze)",
     )
 
@@ -262,8 +260,7 @@ def main() -> None:
     print(f"  Dry Run      : {args.dry_run}")
     print(f"  Download     : {not args.no_download}")
     print(f"  Optimize     : {args.optimize}")
-    print(
-        f"  Datasets     : {', '.join(args.datasets) if args.datasets else 'ALL'}")
+    print(f"  Datasets     : {', '.join(args.datasets) if args.datasets else 'ALL'}")
     print()
 
     if args.dry_run:

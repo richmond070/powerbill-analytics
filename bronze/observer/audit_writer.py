@@ -16,6 +16,7 @@ Referenced by: bronze_orchestrator.py
 """
 
 import logging
+
 # from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -70,8 +71,7 @@ class AuditWriter:
         """
         with pg_connection(self.config_path) as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    sql, (str(trace_id), dataset_name, partition_strategy))
+                cur.execute(sql, (str(trace_id), dataset_name, partition_strategy))
                 audit_id: int = cur.fetchone()[0]
 
         logger.debug(

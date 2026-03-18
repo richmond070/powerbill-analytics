@@ -98,8 +98,7 @@ class HuggingFaceDatasetResolver:
             )
 
         if not parquet_files:
-            raise ValueError(
-                f"No parquet files found in dataset: {dataset_url}")
+            raise ValueError(f"No parquet files found in dataset: {dataset_url}")
 
         logger.info(f"Found {len(parquet_files)} parquet file(s)")
         return parquet_files

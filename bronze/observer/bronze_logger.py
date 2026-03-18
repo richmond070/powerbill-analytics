@@ -45,8 +45,7 @@ class _JsonFormatter(logging.Formatter):
         }
         # Attach any extra fields the caller injected (e.g. trace_id)
         for key, value in record.__dict__.items():
-            if key not in logging.LogRecord.__dict__ and not key.startswith(
-                    "_"):
+            if key not in logging.LogRecord.__dict__ and not key.startswith("_"):
                 # Skip standard LogRecord keys to avoid clutter
                 if key not in (
                     "args",

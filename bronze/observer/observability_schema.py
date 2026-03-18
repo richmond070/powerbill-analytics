@@ -62,8 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_metrics_dataset_date
 """
 
 
-def ensure_observability_tables(
-        config_path: str = "databricks/databricks.cfg") -> None:
+def ensure_observability_tables(config_path: str = "databricks/databricks.cfg") -> None:
     """
     Idempotently create observability tables and supporting indexes in PostgreSQL.
 
@@ -89,5 +88,4 @@ def ensure_observability_tables(
                 logger.debug("Ensuring schema object: %s", description)
                 cur.execute(ddl)
 
-    logger.info("Observability schema ready — "
-                "bronze_ingestion_audit + bronze_ingestion_metrics verified.")
+    logger.info("Observability schema ready — " "bronze_ingestion_audit + bronze_ingestion_metrics verified.")

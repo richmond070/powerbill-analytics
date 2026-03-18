@@ -11,9 +11,7 @@ except ImportError:
     from validator import ParquetValidator
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -54,10 +52,7 @@ def run_bronze_ingestion():
 
     datasets = load_config()
 
-    bronze_contract = {
-        "generated_at": datetime.utcnow().isoformat() + "Z",
-        "datasets": []
-    }
+    bronze_contract = {"generated_at": datetime.utcnow().isoformat() + "Z", "datasets": []}
 
     for dataset_config in datasets:
         dataset_name = dataset_config["name"]
@@ -74,8 +69,7 @@ def run_bronze_ingestion():
             # Step 2: Validate each parquet file
             validated_files = []
             for file_info in parquet_files:
-                metadata = validator.validate_remote_parquet(
-                    url=file_info["url"], filename=file_info["filename"])
+                metadata = validator.validate_remote_parquet(url=file_info["url"], filename=file_info["filename"])
 
                 # Merge file info with validation metadata
                 validated_files.append({**file_info, **metadata})
@@ -85,10 +79,7 @@ def run_bronze_ingestion():
                 "dataset_name": dataset_name,
                 "api_endpoint": api_url,
                 "file_count": len(validated_files),
-                "total_rows": sum(
-                    f.get(
-                        "num_rows",
-                        0) for f in validated_files),
+                "total_rows": sum(f.get("num_rows", 0) for f in validated_files),
                 "files": validated_files,
             }
 
@@ -111,8 +102,7 @@ def run_bronze_ingestion():
 
     logger.info("\n" + "=" * 60)
     logger.info("Bronze ingestion complete!")
-    logger.info(
-        f"Total datasets processed: {len(bronze_contract['datasets'])}")
+    logger.info(f"Total datasets processed: {len(bronze_contract['datasets'])}")
     logger.info(f"Contract location: {BRONZE_CONTRACT_PATH}")
     logger.info("=" * 60)
 

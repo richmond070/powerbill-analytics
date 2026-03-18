@@ -34,11 +34,7 @@ class DatabricksSQLClient:
     Executes SQL statements and monitors execution
     """
 
-    def __init__(
-            self,
-            config_path=CONFIG_PATH,
-            catalog: str = "main",
-            schema: str = "bronze"):
+    def __init__(self, config_path=CONFIG_PATH, catalog: str = "main", schema: str = "bronze"):
         """
         Initialize Databricks SQL client
 
@@ -56,16 +52,13 @@ class DatabricksSQLClient:
         self.schema = schema
 
         if not self.workspace_url or not self.token:
-            raise ValueError(
-                "Databricks workspace URL or token missing in config file")
+            raise ValueError("Databricks workspace URL or token missing in config file")
 
         if not self.warehouse_id:
             raise ValueError("Databricks warehouse_id missing in config file")
 
         self.api_base = f"{self.workspace_url}/api/2.0"
-        self.headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json"}
+        self.headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
 
     def _load_config(self, config_path: str) -> dict:
         """
@@ -140,10 +133,7 @@ class DatabricksSQLClient:
         result = response.json()
         return result["statement_id"]
 
-    def _wait_for_completion(
-            self,
-            statement_id: str,
-            wait_timeout: int) -> SQLExecutionResult:
+    def _wait_for_completion(self, statement_id: str, wait_timeout: int) -> SQLExecutionResult:
         """
         Wait for statement execution to complete
 
@@ -161,14 +151,12 @@ class DatabricksSQLClient:
 
         while True:
             if time.time() - start_time > wait_timeout:
-                raise TimeoutError(
-                    f"SQL execution timed out after {wait_timeout}s")
+                raise TimeoutError(f"SQL execution timed out after {wait_timeout}s")
 
             response = requests.get(endpoint, headers=self.headers)
 
             if response.status_code != 200:
-                raise Exception(
-                    f"Failed to get statement status: {response.text}")
+                raise Exception(f"Failed to get statement status: {response.text}")
 
             result = response.json()
             status = result["status"]["state"]
@@ -182,19 +170,10 @@ class DatabricksSQLClient:
                 )
 
             elif status in ["FAILED", "CANCELED", "CLOSED"]:
-                error_msg = result.get(
-                    "status",
-                    {}).get(
-                    "error",
-                    {}).get(
-                    "message",
-                    "Unknown error")
+                error_msg = result.get("status", {}).get("error", {}).get("message", "Unknown error")
                 return SQLExecutionResult(
-                    statement_id=statement_id,
-                    status=status,
-                    row_count=None,
-                    duration_ms=0,
-                    error_message=error_msg)
+                    statement_id=statement_id, status=status, row_count=None, duration_ms=0, error_message=error_msg
+                )
 
             # Still running - wait and retry
             time.sleep(poll_interval)
@@ -215,10 +194,7 @@ class DatabricksSQLClient:
             pass
         return None
 
-    def execute_batch(
-            self,
-            sql_statements: List[str],
-            continue_on_error: bool = False) -> List[SQLExecutionResult]:
+    def execute_batch(self, sql_statements: List[str], continue_on_error: bool = False) -> List[SQLExecutionResult]:
         """
         Execute multiple SQL statements in sequence
 
@@ -248,11 +224,8 @@ class DatabricksSQLClient:
 
             except Exception as e:
                 error_result = SQLExecutionResult(
-                    statement_id="N/A",
-                    status="ERROR",
-                    row_count=None,
-                    duration_ms=0,
-                    error_message=str(e))
+                    statement_id="N/A", status="ERROR", row_count=None, duration_ms=0, error_message=str(e)
+                )
                 results.append(error_result)
                 print(f" Error: {str(e)}")
 
@@ -289,12 +262,7 @@ class SQLExecutionLogger:
     def __init__(self, log_file: str = "bronze_ingestion_log.json"):
         self.log_file = log_file
 
-    def log_execution(
-            self,
-            dataset_name: str,
-            sql_type: str,
-            result: SQLExecutionResult,
-            sql_statement: str):
+    def log_execution(self, dataset_name: str, sql_type: str, result: SQLExecutionResult, sql_statement: str):
         """Log SQL execution"""
         log_entry = {
             "timestamp": datetime.utcnow().isoformat(),

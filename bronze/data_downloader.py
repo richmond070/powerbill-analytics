@@ -30,11 +30,7 @@ class DataDownloader:
     Python orchestrates, does not process data
     """
 
-    def __init__(
-            self,
-            staging_root: str = "/mnt/staging/raw",
-            chunk_size: int = 8192,
-            max_retries: int = 3):
+    def __init__(self, staging_root: str = "/mnt/staging/raw", chunk_size: int = 8192, max_retries: int = 3):
         """
         Initialize data downloader
 
@@ -47,10 +43,7 @@ class DataDownloader:
         self.chunk_size = chunk_size
         self.max_retries = max_retries
 
-    def download_dataset(
-            self,
-            dataset_metadata: Dict,
-            force_redownload: bool = False) -> List[DownloadResult]:
+    def download_dataset(self, dataset_metadata: Dict, force_redownload: bool = False) -> List[DownloadResult]:
         """
         Download all files for a dataset
 
@@ -96,8 +89,7 @@ class DataDownloader:
             # Skip if already exists and not forcing redownload
             if os.path.exists(local_path) and not force_redownload:
                 file_size = os.path.getsize(local_path)
-                print(
-                    f"   [{i}/{len(files)}]  {filename} (cached, {file_size:,} bytes)")
+                print(f"   [{i}/{len(files)}]  {filename} (cached, {file_size:,} bytes)")
                 results.append(
                     DownloadResult(
                         dataset_name=dataset_name,
@@ -111,13 +103,11 @@ class DataDownloader:
 
             # Download file
             print(f"   [{i}/{len(files)}] ⬇ {filename}...", end=" ")
-            result = self._download_file(
-                url, local_path, dataset_name, filename)
+            result = self._download_file(url, local_path, dataset_name, filename)
             results.append(result)
 
             if result.success:
-                print(
-                    f" ({result.size_bytes:,} bytes, {result.download_time_sec:.1f}s)")
+                print(f" ({result.size_bytes:,} bytes, {result.download_time_sec:.1f}s)")
             else:
                 print(f"{result.error_message}")
 
@@ -126,12 +116,7 @@ class DataDownloader:
 
         return results
 
-    def _download_file(
-            self,
-            url: str,
-            local_path: str,
-            dataset_name: str,
-            filename: str) -> DownloadResult:
+    def _download_file(self, url: str, local_path: str, dataset_name: str, filename: str) -> DownloadResult:
         """
         Download a single file with retry logic
 
@@ -155,8 +140,7 @@ class DataDownloader:
                 # Write to file in chunks
                 total_size = 0
                 with open(local_path, "wb") as f:
-                    for chunk in response.iter_content(
-                            chunk_size=self.chunk_size):
+                    for chunk in response.iter_content(chunk_size=self.chunk_size):
                         if chunk:
                             f.write(chunk)
                             total_size += len(chunk)

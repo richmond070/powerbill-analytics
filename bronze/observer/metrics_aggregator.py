@@ -71,9 +71,9 @@ class MetricsAggregator:
         duration_seconds = duration_ms / 1000.0
         rows = row_count or 0
 
-        success_delta  = 1 if success else 0
-        failure_delta  = 0 if success else 1
-        schema_delta   = 1 if schema_evolved else 0
+        success_delta = 1 if success else 0
+        failure_delta = 0 if success else 1
+        schema_delta = 1 if schema_evolved else 0
 
         # Upsert: insert a fresh row for the (dataset, date) pair,
         # or add the run's contribution to existing day-level counters.
@@ -94,26 +94,29 @@ class MetricsAggregator:
         """
         with pg_connection(self.config_path) as conn:
             with conn.cursor() as cur:
-                cur.execute(upsert_sql, (
-                    dataset_name,
-                    today,
-                    success_delta,
-                    failure_delta,
-                    rows,
-                    duration_seconds,
-                    schema_delta,
-                ))
+                cur.execute(
+                    upsert_sql,
+                    (
+                        dataset_name,
+                        today,
+                        success_delta,
+                        failure_delta,
+                        rows,
+                        duration_seconds,
+                        schema_delta,
+                    ),
+                )
 
         logger.info(
             "Metrics updated",
             extra={
-                "event":            "bronze_metrics_updated",
-                "trace_id":         str(trace_id),
-                "dataset_name":     dataset_name,
-                "metric_date":      str(today),
-                "success":          success,
-                "row_count":        rows,
+                "event": "bronze_metrics_updated",
+                "trace_id": str(trace_id),
+                "dataset_name": dataset_name,
+                "metric_date": str(today),
+                "success": success,
+                "row_count": rows,
                 "duration_seconds": round(duration_seconds, 3),
-                "schema_evolved":   schema_evolved,
+                "schema_evolved": schema_evolved,
             },
         )

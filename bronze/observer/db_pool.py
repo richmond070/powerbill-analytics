@@ -21,9 +21,8 @@ import configparser
 from contextlib import contextmanager
 from typing import Optional
 
-import psycopg2
+# import psycopg2
 from psycopg2 import pool as pg_pool
-
 
 # Module-level singleton — created once, shared across the process
 _pool: Optional[pg_pool.ThreadedConnectionPool] = None
@@ -44,10 +43,10 @@ def _build_dsn(config_path: str = "databricks/databricks.cfg") -> str:
         DSN string understood by psycopg2.connect().
     """
     # --- Try environment variables first (CI / cloud-friendly) ---
-    host     = os.getenv("PG_HOST")
-    port     = os.getenv("PG_PORT", "5432")
-    dbname   = os.getenv("PG_DB")
-    user     = os.getenv("PG_USER")
+    host = os.getenv("PG_HOST")
+    port = os.getenv("PG_PORT", "5432")
+    dbname = os.getenv("PG_DB")
+    user = os.getenv("PG_USER")
     password = os.getenv("PG_PASSWORD")
 
     if not all([host, dbname, user, password]):
@@ -57,15 +56,20 @@ def _build_dsn(config_path: str = "databricks/databricks.cfg") -> str:
             parser.read(config_path)
             section = "POSTGRES"
             if parser.has_section(section):
-                host     = host     or parser.get(section, "host",     fallback=None)
-                port     = port     or parser.get(section, "port",     fallback="5432")
-                dbname   = dbname   or parser.get(section, "dbname",   fallback=None)
-                user     = user     or parser.get(section, "user",     fallback=None)
-                password = password or parser.get(section, "password", fallback=None)
+                host = host or parser.get(section, "host", fallback=None)
+                port = port or parser.get(section, "port", fallback="5432")
+                dbname = dbname or parser.get(section, "dbname", fallback=None)
+                user = user or parser.get(section, "user", fallback=None)
+                password = password or parser.get(
+                    section, "password", fallback=None)
 
-    missing = [k for k, v in
-               {"PG_HOST": host, "PG_DB": dbname, "PG_USER": user, "PG_PASSWORD": password}.items()
-               if not v]
+    missing = [
+        k for k,
+        v in {
+            "PG_HOST": host,
+            "PG_DB": dbname,
+            "PG_USER": user,
+            "PG_PASSWORD": password}.items() if not v]
     if missing:
         raise EnvironmentError(
             f"PostgreSQL connection config incomplete. Missing: {missing}. "

@@ -7,7 +7,7 @@ on:
   push:
     branches: ["**"]          # Every push on every branch
   pull_request:
-    branches: [develop, main] # PRs targeting develop or main
+    branches: [feature/ci-setup, main] # PRs targeting develop or main
 
 # ---------------------------------------------------------------------------
 # Shared env available to all jobs

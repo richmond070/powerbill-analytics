@@ -26,7 +26,7 @@ Referenced by: bronze_orchestrator.py
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 from uuid import UUID
 
@@ -38,6 +38,7 @@ logger = logging.getLogger("bronze.observability")
 # ---------------------------------------------------------------------------
 # Rule config dataclass
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class DatasetObservabilityRules:
@@ -52,10 +53,11 @@ class DatasetObservabilityRules:
         max_expected_duration_sec: Warn if ingestion exceeds this threshold.
         expected_min_rows:         Warn if row_count falls below this value.
     """
-    dataset_name:               str
-    alert_on_zero_rows:         bool  = True
-    max_expected_duration_sec:  int   = 300   # 5-minute default
-    expected_min_rows:          int   = 1     # at least one row expected
+
+    dataset_name: str
+    alert_on_zero_rows: bool = True
+    max_expected_duration_sec: int = 300  # 5-minute default
+    expected_min_rows: int = 1  # at least one row expected
 
 
 @dataclass
@@ -67,13 +69,15 @@ class RuleViolation:
         rule:   Short machine-readable rule identifier.
         detail: Human-readable explanation for the log / alert body.
     """
-    rule:   str
+
+    rule: str
     detail: str
 
 
 # ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
+
 
 class ObservabilityContractParser:
     """
@@ -94,14 +98,13 @@ class ObservabilityContractParser:
             DatasetObservabilityRules with defaults filled in for absent keys.
         """
         name = dataset_metadata["dataset_name"]
-        obs  = dataset_metadata.get("observability", {})
+        obs = dataset_metadata.get("observability", {})
 
         return DatasetObservabilityRules(
-            dataset_name              = name,
-            alert_on_zero_rows        = obs.get("alert_on_zero_rows",        True),
-            max_expected_duration_sec = obs.get("max_expected_duration_sec",  300),
-            expected_min_rows         = obs.get("expected_min_rows",          1),
-        )
+            dataset_name=name, alert_on_zero_rows=obs.get(
+                "alert_on_zero_rows", True), max_expected_duration_sec=obs.get(
+                "max_expected_duration_sec", 300), expected_min_rows=obs.get(
+                "expected_min_rows", 1), )
 
     @staticmethod
     def parse_all(contract: Dict) -> Dict[str, DatasetObservabilityRules]:
@@ -114,15 +117,14 @@ class ObservabilityContractParser:
         Returns:
             Mapping of dataset_name → DatasetObservabilityRules.
         """
-        return {
-            d["dataset_name"]: ObservabilityContractParser.parse(d)
-            for d in contract.get("datasets", [])
-        }
+        return {d["dataset_name"]: ObservabilityContractParser.parse(
+            d) for d in contract.get("datasets", [])}
 
 
 # ---------------------------------------------------------------------------
 # Rule evaluator
 # ---------------------------------------------------------------------------
+
 
 class ObservabilityRuleEvaluator:
     """
@@ -132,13 +134,13 @@ class ObservabilityRuleEvaluator:
     """
 
     def __init__(self, rules: DatasetObservabilityRules) -> None:
-        self.rules  = rules
-        self._blog  = BronzeLogger(rules.dataset_name)
+        self.rules = rules
+        self._blog = BronzeLogger(rules.dataset_name)
 
     def evaluate(
         self,
-        trace_id:    UUID,
-        row_count:   Optional[int],
+        trace_id: UUID,
+        row_count: Optional[int],
         duration_ms: int,
     ) -> List[RuleViolation]:
         """
@@ -153,42 +155,33 @@ class ObservabilityRuleEvaluator:
             List of RuleViolation instances (empty means all rules passed).
         """
         violations: List[RuleViolation] = []
-        rows           = row_count or 0
-        duration_sec   = duration_ms / 1000.0
+        rows = row_count or 0
+        duration_sec = duration_ms / 1000.0
 
         # --- Rule 1: zero rows when not expected ---
         if self.rules.alert_on_zero_rows and rows == 0:
             v = RuleViolation(
-                rule   = "zero_rows",
-                detail = (
+                rule="zero_rows", detail=(
                     f"Dataset '{self.rules.dataset_name}' ingested 0 rows. "
-                    "alert_on_zero_rows is enabled."
-                ),
-            )
+                    "alert_on_zero_rows is enabled."), )
             violations.append(v)
             self._blog.log_observability_warning(trace_id, v.rule, v.detail)
 
         # --- Rule 2: rows below expected minimum ---
         elif rows < self.rules.expected_min_rows:
             v = RuleViolation(
-                rule   = "low_row_count",
-                detail = (
+                rule="low_row_count", detail=(
                     f"Dataset '{self.rules.dataset_name}' ingested {rows:,} rows, "
-                    f"below expected minimum of {self.rules.expected_min_rows:,}."
-                ),
-            )
+                    f"below expected minimum of {self.rules.expected_min_rows:,}."), )
             violations.append(v)
             self._blog.log_observability_warning(trace_id, v.rule, v.detail)
 
         # --- Rule 3: duration exceeded maximum ---
         if duration_sec > self.rules.max_expected_duration_sec:
             v = RuleViolation(
-                rule   = "max_duration_exceeded",
-                detail = (
+                rule="max_duration_exceeded", detail=(
                     f"Dataset '{self.rules.dataset_name}' took {duration_sec:.1f}s, "
-                    f"exceeding limit of {self.rules.max_expected_duration_sec}s."
-                ),
-            )
+                    f"exceeding limit of {self.rules.max_expected_duration_sec}s."), )
             violations.append(v)
             self._blog.log_observability_warning(trace_id, v.rule, v.detail)
 
@@ -196,10 +189,10 @@ class ObservabilityRuleEvaluator:
             logger.debug(
                 "All observability rules passed",
                 extra={
-                    "event":        "bronze_rules_passed",
-                    "trace_id":     str(trace_id),
+                    "event": "bronze_rules_passed",
+                    "trace_id": str(trace_id),
                     "dataset_name": self.rules.dataset_name,
-                    "row_count":    rows,
+                    "row_count": rows,
                     "duration_sec": round(duration_sec, 3),
                 },
             )

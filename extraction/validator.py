@@ -19,11 +19,11 @@ class ParquetValidator:
     def validate_remote_parquet(self, url: str, filename: str = None) -> Dict:
         """
         Validates a remote parquet file by downloading and inspecting metadata.
-        
+
         Args:
             url: Direct URL to parquet file
             filename: Optional name of the file for logging
-            
+
         Returns:
             Dictionary containing validation metadata including:
             - filename: Name of the file
@@ -36,10 +36,10 @@ class ParquetValidator:
             - error: Error message if validation failed
         """
         if filename is None:
-            filename = url.split('/')[-1]
-            
+            filename = url.split("/")[-1]
+
         logger.info(f"Validating: {filename}")
-        
+
         try:
             # Download with streaming to handle large files
             response = requests.get(url, stream=True, timeout=self.timeout)
@@ -50,15 +50,12 @@ class ParquetValidator:
             parquet_file = pq.ParquetFile(buffer)
 
             schema = parquet_file.schema.to_arrow_schema()
-            
+
             # Extract column information
             columns = []
             for field in schema:
-                columns.append({
-                    "name": field.name,
-                    "type": str(field.type),
-                    "nullable": field.nullable
-                })
+                columns.append({"name": field.name, "type": str(
+                    field.type), "nullable": field.nullable})
 
             metadata = {
                 "filename": filename,
@@ -67,15 +64,14 @@ class ParquetValidator:
                 "num_columns": parquet_file.metadata.num_columns,
                 "num_row_groups": parquet_file.metadata.num_row_groups,
                 "columns": columns,
-                "validation_status": "success"
+                "validation_status": "success",
             }
-            
+
             logger.info(
                 f"✓ Validated {filename}: "
                 f"{metadata['num_rows']:,} rows, "
-                f"{metadata['num_columns']} columns"
-            )
-            
+                f"{metadata['num_columns']} columns")
+
             return metadata
 
         except Exception as e:
@@ -84,5 +80,4 @@ class ParquetValidator:
                 "filename": filename,
                 "url": url,
                 "validation_status": "failed",
-                "error": str(e)
-            }
+                "error": str(e)}

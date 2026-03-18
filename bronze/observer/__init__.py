@@ -15,10 +15,10 @@ Public surface:
     - close_pool()                      : graceful shutdown of Postgres connection pool
 """
 
-from .bronze_logger          import BronzeLogger, configure_logging
-from .observability_schema   import ensure_observability_tables
-from .audit_writer           import AuditWriter
-from .metrics_aggregator     import MetricsAggregator
+from .bronze_logger import BronzeLogger, configure_logging
+from .observability_schema import ensure_observability_tables
+from .audit_writer import AuditWriter
+from .metrics_aggregator import MetricsAggregator
 from .observability_contract import (
     ObservabilityContractParser,
     ObservabilityRuleEvaluator,

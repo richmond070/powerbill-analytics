@@ -31,15 +31,14 @@ import os
 import time
 from datetime import datetime
 from typing import Dict, List, Optional
-from pathlib import Path
 import tempfile
 import uuid
 
 # Core pipeline modules (unchanged)
 from .partition_strategy import PartitionHeuristics
-from .sql_generator      import BronzeSQLGenerator
-from .databricks_client  import DatabricksSQLClient, SQLExecutionLogger
-from .data_downloader    import DataDownloader
+from .sql_generator import BronzeSQLGenerator
+from .databricks_client import DatabricksSQLClient, SQLExecutionLogger
+from .data_downloader import DataDownloader
 
 # Observability layer (new)
 from .observer import (
@@ -64,12 +63,12 @@ class BronzeLayerOrchestrator:
 
     def __init__(
         self,
-        contract_path:  str,
-        config_path:    str,
-        catalog:        str = "main",
-        schema:         str = "bronze",
-        staging_root:   str = "/mnt/staging/raw",
-        delta_root:     str = "/mnt/delta/bronze",
+        contract_path: str,
+        config_path: str,
+        catalog: str = "main",
+        schema: str = "bronze",
+        staging_root: str = "/mnt/staging/raw",
+        delta_root: str = "/mnt/delta/bronze",
     ):
         """
         Initialize the orchestrator.
@@ -83,9 +82,9 @@ class BronzeLayerOrchestrator:
             delta_root:    Root path for Delta tables.
         """
         self.contract_path = contract_path
-        self.config_path   = config_path
-        self.catalog       = catalog
-        self.schema        = schema
+        self.config_path = config_path
+        self.catalog = catalog
+        self.schema = schema
 
         configure_logging()
 
@@ -96,23 +95,23 @@ class BronzeLayerOrchestrator:
 
         ensure_observability_tables(config_path)
 
-        self._audit    = AuditWriter(config_path)
-        self._metrics  = MetricsAggregator(config_path)
+        self._audit = AuditWriter(config_path)
+        self._metrics = MetricsAggregator(config_path)
 
         # Instantiate pipeline components (unchanged from original)
         self.sql_generator = BronzeSQLGenerator(
-            catalog          = catalog,
-            schema           = schema,
-            base_location    = delta_root,
-            staging_location = staging_root,
+            catalog=catalog,
+            schema=schema,
+            base_location=delta_root,
+            staging_location=staging_root,
         )
         self.downloader = DataDownloader(staging_root=staging_root)
-        self.db_client  = DatabricksSQLClient(
-            config_path = config_path,
-            catalog     = catalog,
-            schema      = schema,
+        self.db_client = DatabricksSQLClient(
+            config_path=config_path,
+            catalog=catalog,
+            schema=schema,
         )
-        self.logger     = SQLExecutionLogger()   # original file-based logger kept
+        self.logger = SQLExecutionLogger()  # original file-based logger kept
 
         print(f"\n{'='*80}")
         print("Bronze Layer Orchestrator Initialized")
@@ -124,11 +123,10 @@ class BronzeLayerOrchestrator:
         print(f"Datasets:  {len(self.contract['datasets'])}")
         print(f"{'='*80}\n")
 
-   
     def create_bronze_tables(
         self,
-        datasets:  Optional[List[str]] = None,
-        dry_run:   bool = False,
+        datasets: Optional[List[str]] = None,
+        dry_run: bool = False,
     ) -> None:
         """
         Create bronze Delta tables from contract metadata.
@@ -150,49 +148,51 @@ class BronzeLayerOrchestrator:
 
         for i, dataset in enumerate(datasets_to_process, 1):
             dataset_name = dataset["dataset_name"]
-            print(f"\n[{i}/{len(datasets_to_process)}] Processing: {dataset_name}")
+            print(
+                f"\n[{i}/{len(datasets_to_process)}] Processing: {dataset_name}")
             print(f"   Rows: {dataset['total_rows']:,}")
 
             # ── Observability: generate trace_id ────
             trace_id = uuid.uuid4()
-            blog     = BronzeLogger(dataset_name)
+            blog = BronzeLogger(dataset_name)
 
             partition_config = PartitionHeuristics.determine_strategy(
-                dataset_name = dataset_name,
-                total_rows   = dataset["total_rows"],
-                columns      = dataset["files"][0]["columns"],
-                file_count   = dataset["file_count"],
+                dataset_name=dataset_name,
+                total_rows=dataset["total_rows"],
+                columns=dataset["files"][0]["columns"],
+                file_count=dataset["file_count"],
             )
             print(f"   Strategy:   {partition_config.strategy.value}")
             if partition_config.partition_columns:
-                print(f"   Partitions: {', '.join(partition_config.partition_columns)}")
+                print(
+                    f"   Partitions: {', '.join(partition_config.partition_columns)}")
             print(f"   Reason:     {partition_config.reason}")
 
             # ── Observability: audit RUNNING ────
             audit_id = None
             if not dry_run:
                 audit_id = self._audit.insert_running(
-                    trace_id           = trace_id,
-                    dataset_name       = dataset_name,
-                    partition_strategy = partition_config.strategy.value,
+                    trace_id=trace_id,
+                    dataset_name=dataset_name,
+                    partition_strategy=partition_config.strategy.value,
                 )
 
             create_sql = self.sql_generator.generate_create_table_sql(
-                dataset_metadata = dataset,
-                partition_config = partition_config,
-                timestamp        = timestamp,
+                dataset_metadata=dataset,
+                partition_config=partition_config,
+                timestamp=timestamp,
             )
 
             # ── Observability: log SQL generated ───
             blog.log_sql_generated(
-                trace_id           = trace_id,
-                partition_strategy = partition_config.strategy.value,
-                sql_type           = "CREATE_TABLE",
+                trace_id=trace_id,
+                partition_strategy=partition_config.strategy.value,
+                sql_type="CREATE_TABLE",
             )
 
             sql_file = os.path.join(
-                tempfile.gettempdir(), f"bronze_{dataset_name}_create.sql"
-            )
+                tempfile.gettempdir(),
+                f"bronze_{dataset_name}_create.sql")
             with open(sql_file, "w") as f:
                 f.write(create_sql)
             print(f"   SQL saved: {sql_file}")
@@ -209,39 +209,39 @@ class BronzeLayerOrchestrator:
 
                 # ── Observability: log execution result ─────────────
                 blog.log_sql_executed(
-                    trace_id     = trace_id,
-                    statement_id = result.statement_id,
-                    status       = result.status,
-                    row_count    = result.row_count,
-                    duration_ms  = result.duration_ms,
+                    trace_id=trace_id,
+                    statement_id=result.statement_id,
+                    status=result.status,
+                    row_count=result.row_count,
+                    duration_ms=result.duration_ms,
                 )
 
                 # ── Observability: audit update ──────────────────────
                 self._audit.update_completed(
-                    audit_id      = audit_id,
-                    trace_id      = trace_id,
-                    statement_id  = result.statement_id,
-                    status        = result.status,
-                    row_count     = result.row_count,
-                    duration_ms   = result.duration_ms,
-                    error_message = result.error_message,
+                    audit_id=audit_id,
+                    trace_id=trace_id,
+                    statement_id=result.statement_id,
+                    status=result.status,
+                    row_count=result.row_count,
+                    duration_ms=result.duration_ms,
+                    error_message=result.error_message,
                 )
 
                 # ── Observability: metrics update ────────────────────
                 self._metrics.record_ingestion(
-                    trace_id    = trace_id,
-                    dataset_name= dataset_name,
-                    success     = result.status == "SUCCEEDED",
-                    row_count   = result.row_count,
-                    duration_ms = result.duration_ms,
+                    trace_id=trace_id,
+                    dataset_name=dataset_name,
+                    success=result.status == "SUCCEEDED",
+                    row_count=result.row_count,
+                    duration_ms=result.duration_ms,
                 )
 
                 # ── Original file-based logger (kept for compatibility)
                 self.logger.log_execution(
-                    dataset_name   = dataset_name,
-                    sql_type       = "CREATE_TABLE",
-                    result         = result,
-                    sql_statement  = create_sql,
+                    dataset_name=dataset_name,
+                    sql_type="CREATE_TABLE",
+                    result=result,
+                    sql_statement=create_sql,
                 )
 
                 if result.status == "SUCCEEDED":
@@ -253,17 +253,17 @@ class BronzeLayerOrchestrator:
                 duration_ms = int(time.time() * 1000) - start_ms
                 blog.log_sql_failed(trace_id=trace_id, error_message=str(exc))
                 self._audit.mark_failed(
-                    audit_id      = audit_id,
-                    trace_id      = trace_id,
-                    error_message = str(exc),
-                    duration_ms   = duration_ms,
+                    audit_id=audit_id,
+                    trace_id=trace_id,
+                    error_message=str(exc),
+                    duration_ms=duration_ms,
                 )
                 self._metrics.record_ingestion(
-                    trace_id     = trace_id,
-                    dataset_name = dataset_name,
-                    success      = False,
-                    row_count    = None,
-                    duration_ms  = duration_ms,
+                    trace_id=trace_id,
+                    dataset_name=dataset_name,
+                    success=False,
+                    row_count=None,
+                    duration_ms=duration_ms,
                 )
                 raise
 
@@ -273,9 +273,9 @@ class BronzeLayerOrchestrator:
 
     def ingest_data(
         self,
-        datasets:  Optional[List[str]] = None,
-        download:  bool = True,
-        dry_run:   bool = False,
+        datasets: Optional[List[str]] = None,
+        download: bool = True,
+        dry_run: bool = False,
     ) -> None:
         """
         Ingest data into bronze Delta tables.
@@ -300,9 +300,9 @@ class BronzeLayerOrchestrator:
 
             # ── Observability: generate trace_id ──────────────────────
             trace_id = uuid.uuid4()
-            blog     = BronzeLogger(dataset_name)
-            rules    = self._obs_rules.get(dataset_name)
-            evaluator= ObservabilityRuleEvaluator(rules) if rules else None
+            blog = BronzeLogger(dataset_name)
+            rules = self._obs_rules.get(dataset_name)
+            evaluator = ObservabilityRuleEvaluator(rules) if rules else None
 
             # ── Download raw data ──────────────────────────────────────
             if download:
@@ -312,60 +312,60 @@ class BronzeLayerOrchestrator:
                     # Audit the skip as a failure
                     if not dry_run:
                         audit_id = self._audit.insert_running(
-                            trace_id           = trace_id,
-                            dataset_name       = dataset_name,
-                            partition_strategy = "N/A",
+                            trace_id=trace_id,
+                            dataset_name=dataset_name,
+                            partition_strategy="N/A",
                         )
                         self._audit.mark_failed(
-                            audit_id      = audit_id,
-                            trace_id      = trace_id,
-                            error_message = "Download failed before ingestion",
+                            audit_id=audit_id,
+                            trace_id=trace_id,
+                            error_message="Download failed before ingestion",
                         )
                         self._metrics.record_ingestion(
-                            trace_id     = trace_id,
-                            dataset_name = dataset_name,
-                            success      = False,
-                            row_count    = None,
-                            duration_ms  = 0,
+                            trace_id=trace_id,
+                            dataset_name=dataset_name,
+                            success=False,
+                            row_count=None,
+                            duration_ms=0,
                         )
                     continue
 
             # ── Determine partition strategy ───────────────────────────
             partition_config = PartitionHeuristics.determine_strategy(
-                dataset_name = dataset_name,
-                total_rows   = dataset["total_rows"],
-                columns      = dataset["files"][0]["columns"],
-                file_count   = dataset["file_count"],
+                dataset_name=dataset_name,
+                total_rows=dataset["total_rows"],
+                columns=dataset["files"][0]["columns"],
+                file_count=dataset["file_count"],
             )
 
             # ── Observability: audit RUNNING ───────────────────────────
             audit_id = None
             if not dry_run:
                 audit_id = self._audit.insert_running(
-                    trace_id           = trace_id,
-                    dataset_name       = dataset_name,
-                    partition_strategy = partition_config.strategy.value,
+                    trace_id=trace_id,
+                    dataset_name=dataset_name,
+                    partition_strategy=partition_config.strategy.value,
                 )
 
             # ── Generate ingestion SQL ─────────────────────────────────
-            use_merge  = partition_config.use_append_only or dataset["total_rows"] > 300_000
+            use_merge = partition_config.use_append_only or dataset["total_rows"] > 300_000
             ingest_sql = self.sql_generator.generate_ingestion_sql(
-                dataset_metadata = dataset,
-                partition_config = partition_config,
-                use_merge        = use_merge,
+                dataset_metadata=dataset,
+                partition_config=partition_config,
+                use_merge=use_merge,
             )
 
             # ── Observability: log SQL generated ──────────────────────
             sql_type = "MERGE" if use_merge else "COPY_INTO"
             blog.log_sql_generated(
-                trace_id           = trace_id,
-                partition_strategy = partition_config.strategy.value,
-                sql_type           = sql_type,
+                trace_id=trace_id,
+                partition_strategy=partition_config.strategy.value,
+                sql_type=sql_type,
             )
 
             sql_file = os.path.join(
-                tempfile.gettempdir(), f"bronze_{dataset_name}_ingest.sql"
-            )
+                tempfile.gettempdir(),
+                f"bronze_{dataset_name}_ingest.sql")
             with open(sql_file, "w") as f:
                 f.write(ingest_sql)
             print(f"   SQL saved: {sql_file}")
@@ -383,54 +383,55 @@ class BronzeLayerOrchestrator:
 
                 # ── Observability: log execution result ─────────────
                 blog.log_sql_executed(
-                    trace_id     = trace_id,
-                    statement_id = result.statement_id,
-                    status       = result.status,
-                    row_count    = result.row_count,
-                    duration_ms  = result.duration_ms,
+                    trace_id=trace_id,
+                    statement_id=result.statement_id,
+                    status=result.status,
+                    row_count=result.row_count,
+                    duration_ms=result.duration_ms,
                 )
 
                 # ── Observability: audit update ──────────────────────
                 self._audit.update_completed(
-                    audit_id      = audit_id,
-                    trace_id      = trace_id,
-                    statement_id  = result.statement_id,
-                    status        = result.status,
-                    row_count     = result.row_count,
-                    duration_ms   = result.duration_ms,
-                    error_message = result.error_message,
+                    audit_id=audit_id,
+                    trace_id=trace_id,
+                    statement_id=result.statement_id,
+                    status=result.status,
+                    row_count=result.row_count,
+                    duration_ms=result.duration_ms,
+                    error_message=result.error_message,
                 )
 
                 success = result.status == "SUCCEEDED"
 
                 # ── Observability: metrics update ────────────────────
                 self._metrics.record_ingestion(
-                    trace_id     = trace_id,
-                    dataset_name = dataset_name,
-                    success      = success,
-                    row_count    = result.row_count,
-                    duration_ms  = result.duration_ms,
+                    trace_id=trace_id,
+                    dataset_name=dataset_name,
+                    success=success,
+                    row_count=result.row_count,
+                    duration_ms=result.duration_ms,
                 )
 
                 # ── Observability: rule evaluation ───────────────────
                 if evaluator and success:
                     evaluator.evaluate(
-                        trace_id    = trace_id,
-                        row_count   = result.row_count,
-                        duration_ms = result.duration_ms,
+                        trace_id=trace_id,
+                        row_count=result.row_count,
+                        duration_ms=result.duration_ms,
                     )
 
                 # ── Original file-based logger (kept for compatibility)
                 self.logger.log_execution(
-                    dataset_name  = dataset_name,
-                    sql_type      = "INGEST",
-                    result        = result,
-                    sql_statement = ingest_sql,
+                    dataset_name=dataset_name,
+                    sql_type="INGEST",
+                    result=result,
+                    sql_statement=ingest_sql,
                 )
 
                 if success:
                     row_info = f"{result.row_count:,} rows" if result.row_count else "completed"
-                    print(f"   ✓ Ingestion complete: {row_info} ({result.duration_ms}ms)")
+                    print(
+                        f"   ✓ Ingestion complete: {row_info} ({result.duration_ms}ms)")
                 else:
                     print(f"   ✗ Failed: {result.error_message}")
 
@@ -438,17 +439,17 @@ class BronzeLayerOrchestrator:
                 duration_ms = int(time.time() * 1000) - start_ms
                 blog.log_sql_failed(trace_id=trace_id, error_message=str(exc))
                 self._audit.mark_failed(
-                    audit_id      = audit_id,
-                    trace_id      = trace_id,
-                    error_message = str(exc),
-                    duration_ms   = duration_ms,
+                    audit_id=audit_id,
+                    trace_id=trace_id,
+                    error_message=str(exc),
+                    duration_ms=duration_ms,
                 )
                 self._metrics.record_ingestion(
-                    trace_id     = trace_id,
-                    dataset_name = dataset_name,
-                    success      = False,
-                    row_count    = None,
-                    duration_ms  = duration_ms,
+                    trace_id=trace_id,
+                    dataset_name=dataset_name,
+                    success=False,
+                    row_count=None,
+                    duration_ms=duration_ms,
                 )
                 raise
 
@@ -459,7 +460,7 @@ class BronzeLayerOrchestrator:
     def optimize_tables(
         self,
         datasets: Optional[List[str]] = None,
-        dry_run:  bool = False,
+        dry_run: bool = False,
     ) -> None:
         """
         Optimize bronze Delta tables (OPTIMIZE + VACUUM).
@@ -478,16 +479,18 @@ class BronzeLayerOrchestrator:
 
         for i, dataset in enumerate(datasets_to_process, 1):
             dataset_name = dataset["dataset_name"]
-            print(f"\n[{i}/{len(datasets_to_process)}] Optimizing: {dataset_name}")
+            print(
+                f"\n[{i}/{len(datasets_to_process)}] Optimizing: {dataset_name}")
 
-            trace_id     = uuid.uuid4()
-            blog         = BronzeLogger(dataset_name)
-            optimize_sql = self.sql_generator.generate_optimization_sql(dataset_name)
+            trace_id = uuid.uuid4()
+            blog = BronzeLogger(dataset_name)
+            optimize_sql = self.sql_generator.generate_optimization_sql(
+                dataset_name)
 
             blog.log_sql_generated(
-                trace_id           = trace_id,
-                partition_strategy = "N/A",
-                sql_type           = "OPTIMIZE",
+                trace_id=trace_id,
+                partition_strategy="N/A",
+                sql_type="OPTIMIZE",
             )
 
             if dry_run:
@@ -498,14 +501,15 @@ class BronzeLayerOrchestrator:
             try:
                 result = self.db_client.execute_sql(optimize_sql)
                 blog.log_sql_executed(
-                    trace_id     = trace_id,
-                    statement_id = result.statement_id,
-                    status       = result.status,
-                    row_count    = result.row_count,
-                    duration_ms  = result.duration_ms,
+                    trace_id=trace_id,
+                    statement_id=result.statement_id,
+                    status=result.status,
+                    row_count=result.row_count,
+                    duration_ms=result.duration_ms,
                 )
                 if result.status == "SUCCEEDED":
-                    print(f"   ✓ Optimization complete ({result.duration_ms}ms)")
+                    print(
+                        f"   ✓ Optimization complete ({result.duration_ms}ms)")
                 else:
                     print(f"   ✗ Failed: {result.error_message}")
             except Exception as exc:
@@ -521,7 +525,7 @@ class BronzeLayerOrchestrator:
         datasets: Optional[List[str]] = None,
         download: bool = True,
         optimize: bool = False,
-        dry_run:  bool = False,
+        dry_run: bool = False,
     ) -> None:
         """
         Run the complete bronze layer pipeline end-to-end.
@@ -544,7 +548,10 @@ class BronzeLayerOrchestrator:
 
         try:
             self.create_bronze_tables(datasets=datasets, dry_run=dry_run)
-            self.ingest_data(datasets=datasets, download=download, dry_run=dry_run)
+            self.ingest_data(
+                datasets=datasets,
+                download=download,
+                dry_run=dry_run)
             if optimize:
                 self.optimize_tables(datasets=datasets, dry_run=dry_run)
 
@@ -572,8 +579,7 @@ class BronzeLayerOrchestrator:
     # ------------------------------------------------------------------
 
     def _get_datasets_to_process(
-        self, dataset_names: Optional[List[str]]
-    ) -> List[Dict]:
+            self, dataset_names: Optional[List[str]]) -> List[Dict]:
         """Return contract datasets filtered by the optional name list."""
         all_datasets = self.contract["datasets"]
         if dataset_names is None:

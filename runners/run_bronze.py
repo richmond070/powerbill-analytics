@@ -52,7 +52,6 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
-
 # ---------------------------------------------------------------------------
 # Step 1 — Resolve project root and make bronze/ importable
 #
@@ -61,7 +60,7 @@ from pathlib import Path
 # then insert it at the front of sys.path so `from bronze.xxx import ...`
 # resolves correctly without any relative imports.
 # ---------------------------------------------------------------------------
-RUNNERS_DIR  = Path(__file__).parent.resolve()
+RUNNERS_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = RUNNERS_DIR.parent.resolve()
 
 if str(PROJECT_ROOT) not in sys.path:
@@ -70,12 +69,12 @@ if str(PROJECT_ROOT) not in sys.path:
 # Now safe to import — bronze/ is resolvable as an absolute package
 from bronze.bronze_orchestrator import BronzeLayerOrchestrator  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Step 2 — Path constants (all relative to project root)
 # ---------------------------------------------------------------------------
-DEFAULT_CONTRACT_PATH = PROJECT_ROOT / "bronze_metadata" / "bronze_ingestion_contract.json"
-DEFAULT_CONFIG_PATH   = PROJECT_ROOT / "databricks" / "databricks.cfg"
+DEFAULT_CONTRACT_PATH = PROJECT_ROOT / \
+    "bronze_metadata" / "bronze_ingestion_contract.json"
+DEFAULT_CONFIG_PATH = PROJECT_ROOT / "databricks" / "databricks.cfg"
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +147,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="run_bronze",
         description="Bronze layer ingestion pipeline — orchestrates metadata-driven "
-                    "Databricks SQL ingestion from bronze_ingestion_contract.json.",
+        "Databricks SQL ingestion from bronze_ingestion_contract.json.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -192,8 +191,7 @@ def parse_args() -> argparse.Namespace:
         default=False,
         help=(
             "Skip downloading raw parquet files and use previously staged files. "
-            "Useful when re-running ingestion after a partial failure."
-        ),
+            "Useful when re-running ingestion after a partial failure."),
     )
 
     parser.add_argument(
@@ -204,7 +202,9 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--schema",
-        default=os.getenv("DATABRICKS_SCHEMA", "bronze"),
+        default=os.getenv(
+            "DATABRICKS_SCHEMA",
+            "bronze"),
         help="Databricks schema / database name. [env: DATABRICKS_SCHEMA] (default: bronze)",
     )
 
@@ -242,13 +242,13 @@ def main() -> None:
     print("Resolving paths...")
     try:
         contract_path = resolve_contract_path()
-        config_path   = resolve_config_path()
+        config_path = resolve_config_path()
     except FileNotFoundError as e:
         print(f"\nERROR — Missing required file:\n{e}")
         sys.exit(1)
 
     staging_root = os.getenv("STAGING_ROOT", "/tmp/staging/raw")
-    delta_root   = os.getenv("DELTA_ROOT",   "/tmp/delta/bronze")
+    delta_root = os.getenv("DELTA_ROOT", "/tmp/delta/bronze")
 
     # ── Step 3: Print run configuration ──────────────────────────────────
     print(f"  Contract     : {contract_path}")
@@ -262,7 +262,8 @@ def main() -> None:
     print(f"  Dry Run      : {args.dry_run}")
     print(f"  Download     : {not args.no_download}")
     print(f"  Optimize     : {args.optimize}")
-    print(f"  Datasets     : {', '.join(args.datasets) if args.datasets else 'ALL'}")
+    print(
+        f"  Datasets     : {', '.join(args.datasets) if args.datasets else 'ALL'}")
     print()
 
     if args.dry_run:

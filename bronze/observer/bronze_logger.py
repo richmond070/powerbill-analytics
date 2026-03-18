@@ -28,30 +28,47 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
-
 # ---------------------------------------------------------------------------
 # JSON Formatter — converts LogRecord to a flat JSON string
 # ---------------------------------------------------------------------------
+
 
 class _JsonFormatter(logging.Formatter):
     """Renders every log record as a single-line JSON object."""
 
     def format(self, record: logging.LogRecord) -> str:
         payload = {
-            "timestamp":   datetime.now(timezone.utc).isoformat(),
-            "level":       record.levelname,
-            "logger":      record.name,
-            "message":     record.getMessage(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
         }
         # Attach any extra fields the caller injected (e.g. trace_id)
         for key, value in record.__dict__.items():
-            if key not in logging.LogRecord.__dict__ and not key.startswith("_"):
+            if key not in logging.LogRecord.__dict__ and not key.startswith(
+                    "_"):
                 # Skip standard LogRecord keys to avoid clutter
                 if key not in (
-                    "args", "created", "exc_info", "exc_text", "filename",
-                    "funcName", "levelname", "levelno", "lineno", "message",
-                    "module", "msecs", "msg", "name", "pathname", "process",
-                    "processName", "relativeCreated", "stack_info", "thread",
+                    "args",
+                    "created",
+                    "exc_info",
+                    "exc_text",
+                    "filename",
+                    "funcName",
+                    "levelname",
+                    "levelno",
+                    "lineno",
+                    "message",
+                    "module",
+                    "msecs",
+                    "msg",
+                    "name",
+                    "pathname",
+                    "process",
+                    "processName",
+                    "relativeCreated",
+                    "stack_info",
+                    "thread",
                     "threadName",
                 ):
                     payload[key] = value
@@ -65,6 +82,7 @@ class _JsonFormatter(logging.Formatter):
 # ---------------------------------------------------------------------------
 # Module-level logger setup
 # ---------------------------------------------------------------------------
+
 
 def configure_logging(level: int = logging.INFO) -> None:
     """
@@ -87,6 +105,7 @@ def configure_logging(level: int = logging.INFO) -> None:
 # ---------------------------------------------------------------------------
 # BronzeLogger — typed convenience wrapper
 # ---------------------------------------------------------------------------
+
 
 class BronzeLogger:
     """
@@ -123,11 +142,11 @@ class BronzeLogger:
         self._log.info(
             "Bronze SQL generated",
             extra={
-                "event":              "bronze_sql_generated",
-                "trace_id":           str(trace_id),
-                "dataset_name":       self.dataset_name,
+                "event": "bronze_sql_generated",
+                "trace_id": str(trace_id),
+                "dataset_name": self.dataset_name,
                 "partition_strategy": partition_strategy,
-                "sql_type":           sql_type,
+                "sql_type": sql_type,
             },
         )
 
@@ -153,13 +172,13 @@ class BronzeLogger:
         self._log.info(
             "Bronze SQL executed",
             extra={
-                "event":        "bronze_sql_executed",
-                "trace_id":     str(trace_id),
+                "event": "bronze_sql_executed",
+                "trace_id": str(trace_id),
                 "dataset_name": self.dataset_name,
                 "statement_id": statement_id,
-                "status":       status,
-                "row_count":    row_count,
-                "duration_ms":  duration_ms,
+                "status": status,
+                "row_count": row_count,
+                "duration_ms": duration_ms,
             },
         )
 
@@ -179,9 +198,9 @@ class BronzeLogger:
         self._log.error(
             "Bronze SQL failed",
             extra={
-                "event":         "bronze_sql_failed",
-                "trace_id":      str(trace_id),
-                "dataset_name":  self.dataset_name,
+                "event": "bronze_sql_failed",
+                "trace_id": str(trace_id),
+                "dataset_name": self.dataset_name,
                 "error_message": error_message,
             },
         )
@@ -204,10 +223,10 @@ class BronzeLogger:
         self._log.warning(
             "Observability rule violated",
             extra={
-                "event":        "bronze_observability_warning",
-                "trace_id":     str(trace_id),
+                "event": "bronze_observability_warning",
+                "trace_id": str(trace_id),
                 "dataset_name": self.dataset_name,
-                "rule":         rule,
-                "detail":       detail,
+                "rule": rule,
+                "detail": detail,
             },
         )

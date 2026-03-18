@@ -16,7 +16,7 @@ Referenced by: bronze_orchestrator.py
 """
 
 import logging
-from datetime import datetime, timezone
+# from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -70,16 +70,17 @@ class AuditWriter:
         """
         with pg_connection(self.config_path) as conn:
             with conn.cursor() as cur:
-                cur.execute(sql, (str(trace_id), dataset_name, partition_strategy))
+                cur.execute(
+                    sql, (str(trace_id), dataset_name, partition_strategy))
                 audit_id: int = cur.fetchone()[0]
 
         logger.debug(
             "Audit record inserted (RUNNING)",
             extra={
-                "event":        "audit_insert_running",
-                "trace_id":     str(trace_id),
+                "event": "audit_insert_running",
+                "trace_id": str(trace_id),
                 "dataset_name": dataset_name,
-                "audit_id":     audit_id,
+                "audit_id": audit_id,
             },
         )
         return audit_id
@@ -122,24 +123,28 @@ class AuditWriter:
         """
         with pg_connection(self.config_path) as conn:
             with conn.cursor() as cur:
-                cur.execute(sql, (
-                    statement_id,
-                    audit_status,
-                    row_count,
-                    duration_ms,
-                    error_message,
-                    audit_id,
-                ))
+                cur.execute(
+                    sql,
+                    (
+                        statement_id,
+                        audit_status,
+                        row_count,
+                        duration_ms,
+                        error_message,
+                        audit_id,
+                    ),
+                )
 
         logger.debug(
-            "Audit record updated (%s)", audit_status,
+            "Audit record updated (%s)",
+            audit_status,
             extra={
-                "event":        "audit_update_completed",
-                "trace_id":     str(trace_id),
-                "audit_id":     audit_id,
-                "status":       audit_status,
-                "row_count":    row_count,
-                "duration_ms":  duration_ms,
+                "event": "audit_update_completed",
+                "trace_id": str(trace_id),
+                "audit_id": audit_id,
+                "status": audit_status,
+                "row_count": row_count,
+                "duration_ms": duration_ms,
             },
         )
 

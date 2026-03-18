@@ -1,0 +1,475 @@
+name: CI
+
+# ---------------------------------------------------------------------------
+# Triggers
+# ---------------------------------------------------------------------------
+on:
+  push:
+    branches: ["**"]          # Every push on every branch
+  pull_request:
+    branches: [develop, main] # PRs targeting develop or main
+
+# ---------------------------------------------------------------------------
+# Shared env available to all jobs
+# ---------------------------------------------------------------------------
+env:
+  PYTHON_VERSION: "3.11"
+  DATABRICKS_CATALOG: "main"
+  DATABRICKS_SCHEMA:  "bronze"
+  STAGING_ROOT:       "/tmp/staging"
+  DELTA_ROOT:         "/tmp/delta"
+
+# ===========================================================================
+# JOB 1 — Code Quality (lint + format)
+# Runs on: every push / every PR
+# Needs: nothing
+# ===========================================================================
+jobs:
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install lint tools
+        run: |
+          pip install --upgrade pip
+          pip install flake8 black
+
+      - name: flake8 — Python lint
+        run: |
+          flake8 bronze/ extraction/ runners/ \
+            --max-line-length=120 \
+            --ignore=E501,W503,E203 \
+            --exclude=__pycache__,.venv
+
+      - name: black — format check
+        run: |
+          black --check bronze/ extraction/ runners/ \
+            --line-length=120
+
+
+# ===========================================================================
+# JOB 2 — Unit Tests
+# Runs on: every push / every PR
+# Needs: code-quality passes
+# Uses a stub config — no live Databricks or Postgres connection needed
+# ===========================================================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    # Postgres service container for observability layer tests
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER:     ci_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB:       ci_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requriements.txt
+
+      # Write a stub config so DatabricksSQLClient can parse it during tests.
+      # The orchestrator tests mock DatabricksSQLClient entirely — no real
+      # HTTP call is ever made. The file just needs to be parseable.
+      - name: Write stub databricks.cfg for unit tests
+        run: |
+          mkdir -p databricks
+          cat > databricks/databricks.cfg << 'EOF'
+          [DEFAULT]
+          token         = dapi_ci_stub_not_real
+          workspace_url = https://stub.cloud.databricks.com
+          warehouse_id  = stub_warehouse_id
+
+          [POSTGRES]
+          host     = localhost
+          port     = 5432
+          dbname   = ci_test_db
+          user     = ci_user
+          password = ci_password
+          EOF
+
+      - name: Run full test suite
+        env:
+          PG_HOST:     localhost
+          PG_PORT:     5432
+          PG_DB:       ci_test_db
+          PG_USER:     ci_user
+          PG_PASSWORD: ci_password
+        run: |
+          pytest tests/ -v --tb=short
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: .pytest_cache/
+
+
+# ===========================================================================
+# JOB 3 — Contract Validation
+# Runs on: every push / every PR
+# Needs: code-quality passes
+# Validates bronze_metadata/bronze_ingestion_contract.json is well-formed
+# ===========================================================================
+  contract-validation:
+    name: Contract Validation
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Validate bronze_ingestion_contract.json
+        run: |
+          python - << 'EOF'
+          import json, sys
+
+          CONTRACT_PATH = "bronze_metadata/bronze_ingestion_contract.json"
+
+          with open(CONTRACT_PATH) as f:
+              contract = json.load(f)
+
+          errors = []
+
+          # Top-level keys
+          if "datasets" not in contract:
+              errors.append("Missing top-level key: 'datasets'")
+          if "generated_at" not in contract:
+              errors.append("Missing top-level key: 'generated_at'")
+
+          datasets = contract.get("datasets", [])
+          if not datasets:
+              errors.append("'datasets' array is empty")
+
+          # Per-dataset validation
+          REQUIRED_DATASET_KEYS = ["dataset_name", "files"]
+          REQUIRED_FILE_KEYS    = ["filename", "url"]
+
+          for i, ds in enumerate(datasets):
+              prefix = f"datasets[{i}] ({ds.get('dataset_name', '?')})"
+
+              for key in REQUIRED_DATASET_KEYS:
+                  if key not in ds:
+                      errors.append(f"{prefix}: missing key '{key}'")
+
+              files = ds.get("files", [])
+              if not files:
+                  errors.append(f"{prefix}: 'files' array is empty")
+
+              for j, f in enumerate(files):
+                  for key in REQUIRED_FILE_KEYS:
+                      if key not in f:
+                          errors.append(f"{prefix} files[{j}]: missing key '{key}'")
+                  url = f.get("url", "")
+                  if url and not url.startswith("https://"):
+                      errors.append(f"{prefix} files[{j}]: url must start with 'https://'")
+
+          if errors:
+              print("FAIL: Contract validation errors:")
+              for e in errors:
+                  print(f"  ✗ {e}")
+              sys.exit(1)
+
+          print(f"PASS: Contract valid — {len(datasets)} datasets, "
+                f"{sum(len(d.get('files',[])) for d in datasets)} total files")
+          for d in datasets:
+              print(f"  ✓ {d['dataset_name']} ({len(d.get('files',[]))} files, "
+                    f"{d.get('total_rows', 0):,} rows)")
+          EOF
+
+
+# ===========================================================================
+# JOB 4 — Bronze Pipeline Smoke Test
+# Runs on: every push / every PR
+# Needs: unit-tests + contract-validation both pass
+# Runs the full orchestrator dry-run (no Databricks connection)
+# ===========================================================================
+  bronze-smoke-test:
+    name: Bronze Pipeline Smoke Test
+    runs-on: ubuntu-latest
+    needs: [unit-tests, contract-validation]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requriements.txt
+
+      - name: Write stub databricks.cfg
+        run: |
+          mkdir -p databricks
+          cat > databricks/databricks.cfg << 'EOF'
+          [DEFAULT]
+          token         = dapi_ci_stub_not_real
+          workspace_url = https://stub.cloud.databricks.com
+          warehouse_id  = stub_warehouse_id
+
+          [POSTGRES]
+          host     = localhost
+          port     = 5432
+          dbname   = ci_test_db
+          user     = ci_user
+          password = ci_password
+          EOF
+
+      - name: Run dry-run tests (orchestrator + SQL generation)
+        run: |
+          pytest tests/test_bronze_orchestrator.py \
+                 tests/test_sql_generator.py \
+                 tests/test_partition_strategy.py \
+                 -v --tb=short -k "dry_run or sql or partition"
+
+
+# ===========================================================================
+# JOB 5 — Airflow DAG Check
+# Runs on: every push / every PR
+# Needs: code-quality passes
+# Checks all DAGs in airflow/dags/ for syntax errors and import failures
+# ===========================================================================
+  airflow-dag-check:
+    name: Airflow DAG Check
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Airflow and project dependencies
+        run: |
+          pip install --upgrade pip
+          # Pin Airflow version to match docker-compose.yaml (2.10.5)
+          pip install "apache-airflow==2.10.5" \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.11.txt"
+          pip install -r requriements.txt
+
+      - name: Check DAG folder exists
+        run: |
+          if [ ! -d "airflow/dags" ]; then
+            echo "WARNING: airflow/dags/ directory not found — skipping DAG check"
+            exit 0
+          fi
+
+          DAG_COUNT=$(find airflow/dags -name "*.py" | wc -l)
+          echo "Found $DAG_COUNT DAG file(s) in airflow/dags/"
+
+          if [ "$DAG_COUNT" -eq 0 ]; then
+            echo "No DAG files found — skipping check"
+            exit 0
+          fi
+
+      - name: Validate DAG syntax and imports
+        env:
+          AIRFLOW__CORE__DAGS_FOLDER: ${{ github.workspace }}/airflow/dags
+          AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+          AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "sqlite:////tmp/airflow_ci.db"
+        run: |
+          # Initialise a throwaway Airflow DB
+          airflow db migrate 2>/dev/null || airflow db init 2>/dev/null
+
+          # Parse every DAG file — any import error or syntax error exits non-zero
+          python - << 'EOF'
+          import os, sys, importlib.util, traceback
+          from pathlib import Path
+
+          dags_dir = Path("airflow/dags")
+          dag_files = list(dags_dir.glob("*.py"))
+
+          if not dag_files:
+              print("No DAG files to check")
+              sys.exit(0)
+
+          errors = []
+          for dag_file in dag_files:
+              try:
+                  spec = importlib.util.spec_from_file_location(dag_file.stem, dag_file)
+                  mod  = importlib.util.module_from_spec(spec)
+                  spec.loader.exec_module(mod)
+                  print(f"  ✓ {dag_file.name}")
+              except Exception as e:
+                  errors.append((dag_file.name, traceback.format_exc()))
+                  print(f"  ✗ {dag_file.name}: {e}")
+
+          if errors:
+              print(f"\nFAIL: {len(errors)} DAG(s) failed import check:")
+              for name, tb in errors:
+                  print(f"\n--- {name} ---\n{tb}")
+              sys.exit(1)
+
+          print(f"\nPASS: All {len(dag_files)} DAG(s) imported successfully")
+          EOF
+
+
+# ===========================================================================
+# JOB 6 — dbt Compile Check
+# Runs on: every push / every PR
+# Needs: code-quality passes
+# Compiles dbt models without running them (no DB connection needed)
+# ===========================================================================
+  dbt-check:
+    name: dbt Compile Check
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dbt
+        run: |
+          pip install --upgrade pip
+          pip install dbt-core dbt-postgres
+
+      - name: Write stub dbt profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          energy_pipeline:
+            target: ci
+            outputs:
+              ci:
+                type: postgres
+                host:     localhost
+                port:     5432
+                dbname:   ci_test_db
+                user:     ci_user
+                password: ci_password
+                schema:   bronze
+                threads:  1
+          EOF
+
+      - name: dbt compile — validate model SQL
+        working-directory: dbt_project
+        run: |
+          dbt compile --profiles-dir ~/.dbt --target ci
+
+
+# ===========================================================================
+# JOB 7 — Databricks Connectivity Ping
+# Runs on: PRs to main + pushes to main ONLY
+# Needs: bronze-smoke-test passes
+# Uses real credentials from GitHub Secrets — live SELECT 1 call
+# ===========================================================================
+  databricks-connectivity:
+    name: Databricks Connectivity Ping
+    runs-on: ubuntu-latest
+    needs: bronze-smoke-test
+
+    # Only run on main branch pushes and PRs targeting main
+    if: |
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requriements.txt
+
+      # Reconstruct databricks/databricks.cfg from GitHub Secrets
+      # This mirrors the exact structure of your local databricks/databricks.cfg
+      - name: Write databricks.cfg from GitHub Secrets
+        env:
+          DATABRICKS_TOKEN:        ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST:         ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_WAREHOUSE_ID: ${{ secrets.DATABRICKS_WAREHOUSE_ID }}
+          PG_HOST:                 ${{ secrets.PG_HOST }}
+          PG_PORT:                 ${{ secrets.PG_PORT }}
+          PG_DB:                   ${{ secrets.PG_DB }}
+          PG_USER:                 ${{ secrets.PG_USER }}
+          PG_PASSWORD:             ${{ secrets.PG_PASSWORD }}
+        run: |
+          mkdir -p databricks
+          cat > databricks/databricks.cfg << EOF
+          [DEFAULT]
+          token         = ${DATABRICKS_TOKEN}
+          workspace_url = ${DATABRICKS_HOST}
+          warehouse_id  = ${DATABRICKS_WAREHOUSE_ID}
+
+          [POSTGRES]
+          host     = ${PG_HOST}
+          port     = ${PG_PORT:-5432}
+          dbname   = ${PG_DB}
+          user     = ${PG_USER}
+          password = ${PG_PASSWORD}
+          EOF
+          echo "databricks.cfg written (credentials redacted from log)"
+
+      - name: Validate config structure + Ping Databricks (SELECT 1)
+        run: |
+          python .github/scripts/check_databricks_connection.py
+
+      # Always clean up — never leave real credentials on the runner
+      - name: Remove databricks.cfg from runner
+        if: always()
+        run: |
+          rm -f databricks/databricks.cfg
+          echo "Credentials cleaned from runner"

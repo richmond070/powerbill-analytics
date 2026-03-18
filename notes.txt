@@ -1,0 +1,148 @@
+# =========================================================================
+    # DEPENDENCY WIRING
+    #
+    #  validate_env
+    #      │
+    #      ├──► extract__billing_payments ──────────────────────────────────┐
+    #      ├──► extract__commercial_industries_consumption ─────────────────┤
+    #      ├──► extract__customers_complaint ───────────────────────────────┤
+    #      ├──► extract__grid_load ──────────────────────────────────────── ┤
+    #      ├──► extract__power_flow ─────────────────────────────────────── ┤
+    #      └──► extract__retail_tariffs ────────────────────────────────────┘
+    #                                                                        │
+    #                                                               finalise_contract
+    #                                                                        │
+    #      ┌─────────────────────────────────────────────────────────────── ┤
+    #      ├──► create_table__billing_payments                               │
+    #      ├──► create_table__commercial_industries_consumption              │
+    #      ├──► create_table__customers_complaint          all read from the │
+    #      ├──► create_table__grid_load                    same contract     │
+    #      ├──► create_table__power_flow                   in parallel       │
+    #      └──► create_table__retail_tariffs                                 │
+    #                │                                                       │
+    #      (per-dataset — not full fan-in)
+    #                │
+    #      ├──► ingest__billing_payments
+    #      ├──► ingest__commercial_industries_consumption
+    #      ├──► ingest__customers_complaint
+    #      ├──► ingest__grid_load
+    #      ├──► ingest__power_flow
+    #      └──► ingest__retail_tariffs
+    #                │
+    #           (fan-in)
+    #                │
+    #          dbt_run_staging
+    #                │
+    #          dbt_test_staging
+    #                │
+    #          notify_complete
+    # =========================================================================
+
+
+
+
+
+
+"""
+Bronze Layer Pipeline DAG — Full Pipeline (Extraction → Bronze → dbt)
+======================================================================
+Location : airflow/dags/bronze_pipeline_dag.py
+
+Overview
+--------
+This DAG orchestrates the complete Bronze layer pipeline for the Nigerian
+Energy & Utilities Analytics project. It covers every stage from raw API
+resolution through to dbt staging model tests.
+
+Why extraction is Phase 1 (not skipped)
+----------------------------------------
+The bronze_ingestion_contract.json is NOT a static file.
+It is WRITTEN by the extraction phase at runtime by extraction/runner.py.
+
+extraction/runner.py does three things per dataset:
+  1. Calls HuggingFaceDatasetResolver.resolve(api_url)
+       → hits the HuggingFace API, resolves the logical endpoint into
+         concrete parquet file URLs with filenames and byte sizes.
+  2. Calls ParquetValidator.validate_remote_parquet(url, filename)
+       → downloads each parquet file, reads its PyArrow schema, and
+         returns num_rows, num_columns, column names/types/nullability.
+  3. Writes the fully-populated contract to:
+         bronze_metadata/bronze_ingestion_contract.json
+
+The contract file in the repo has "size_bytes": 0 for every file.
+Those zeros are placeholders — the extractor fills in real values at
+runtime. The bronze orchestrator then reads this live contract to drive
+all downstream work (partitioning strategy, schema mapping, SQL generation).
+
+Without the extraction phase running first, the contract is stale or
+missing and every downstream task will either use wrong metadata or fail.
+
+Full pipeline topology
+-----------------------
+
+  [validate_env]
+       │
+       ├──► [extract__billing_payments]
+       ├──► [extract__commercial_industries_consumption]
+       ├──► [extract__customers_complaint]            ← 6 in PARALLEL
+       ├──► [extract__grid_load]                        each resolves + validates
+       ├──► [extract__power_flow]                       one dataset from HuggingFace
+       └──► [extract__retail_tariffs]                   and writes its entry to
+                    │                                   the shared contract
+                    ▼  (fan-in — all 6 must complete)
+          [finalise_contract]
+               │   merges all 6 dataset entries written by extract tasks
+               │   into bronze_ingestion_contract.json and validates it
+               ▼
+       ├──► [create_table__billing_payments]
+       ├──► [create_table__commercial_industries_consumption]
+       ├──► [create_table__customers_complaint]        ← 6 in PARALLEL
+       ├──► [create_table__grid_load]
+       ├──► [create_table__power_flow]
+       └──► [create_table__retail_tariffs]
+                    │
+                    │  (each create_table feeds its own ingest — NOT a full fan-in)
+                    │
+       ├──► [ingest__billing_payments]
+       ├──► [ingest__commercial_industries_consumption]
+       ├──► [ingest__customers_complaint]              ← 6 in PARALLEL
+       ├──► [ingest__grid_load]
+       ├──► [ingest__power_flow]
+       └──► [ingest__retail_tariffs]
+                    │
+                    ▼  (fan-in — all 6 must complete)
+          [dbt_run_staging]
+               │
+               ▼
+          [dbt_test_staging]
+               │
+               ▼
+          [notify_complete]
+
+Design decisions
+----------------
+- extract tasks write individual dataset entries to XCom.
+  finalise_contract collects all 6 XCom payloads and writes the single
+  merged contract JSON. This avoids 6 tasks racing to write the same file.
+
+- Each create_table task depends only on finalise_contract (not on
+  individual extract tasks) because it needs the complete contract.
+
+- Each ingest task depends only on its own create_table task.
+  ingest__grid_load does not wait for create_table__billing_payments.
+
+- BronzeLayerOrchestrator is imported inside each callable (not at module
+  level) so the Airflow scheduler does not load Databricks config on every
+  DAG parse heartbeat.
+
+- dbt runs as BashOperator. dbt-core + dbt-postgres are installed in the
+  Airflow container via airflow/requirements.txt. dbt_project/ is mounted
+  at /opt/airflow/dbt_project via docker-compose volumes.
+
+- All paths come from environment variables set in docker-compose.yaml.
+  No hardcoded paths exist in this file.
+
+- Schedule: daily at 01:00 UTC. Override with BRONZE_PIPELINE_SCHEDULE env var.
+- Retries: 2 with exponential backoff (5m → 10m). Covers HuggingFace
+  transient HTTP errors and Databricks SQL API cold-start delays.
+"""

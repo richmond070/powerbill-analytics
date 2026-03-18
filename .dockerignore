@@ -1,0 +1,119 @@
+# =============================================================================
+# .dockerignore
+# Location: project root (C:.)
+#
+# Controls what gets sent to the Docker build context when running:
+#   docker-compose build
+#
+# WHY THIS MATTERS:
+#   Without .dockerignore, Docker tars up the ENTIRE project directory and
+#   sends it to the Docker daemon before every build. That includes .venv
+#   (~500MB+), logs, __pycache__, .git history, test artifacts, etc.
+#   This slows down every build and risks leaking secrets into the image.
+#
+# RULE OF THUMB:
+#   Exclude anything that is either:
+#     (a) not needed inside the container, or
+#     (b) provided via bind-mount volumes at runtime instead
+#
+# Our Dockerfile only COPYs requirements.txt from the build context.
+# Everything else (bronze/, dbt_project/, dags/) comes in as volume mounts.
+# So almost everything can be safely excluded from the build context.
+# =============================================================================
+
+
+# =============================================================================
+# Python artifacts
+# =============================================================================
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
+**/.Python
+**/*.egg-info/
+**/dist/
+**/build/
+**/.eggs/
+
+# Virtual environments — biggest win, often 300-600MB excluded
+.venv/
+venv/
+env/
+ENV/
+
+
+# =============================================================================
+# Testing artifacts
+# =============================================================================
+**/.pytest_cache/
+**/htmlcov/
+**/.coverage
+**/coverage.xml
+**/test-results/
+tests/
+
+
+# =============================================================================
+# Version control
+# =============================================================================
+.git/
+.gitignore
+.github/
+
+
+# =============================================================================
+# Logs
+# =============================================================================
+airflow/logs/
+*.log
+
+
+# =============================================================================
+# Environment and secrets
+# =============================================================================
+# CRITICAL: never bake credentials into the image
+.env
+.env.*
+databricks/
+
+
+# =============================================================================
+# Editor and OS artifacts
+# =============================================================================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+**/.ipynb_checkpoints/
+
+
+# =============================================================================
+# Docker files (not needed inside the container)
+# =============================================================================
+docker-compose.yaml
+docker-compose.*.yaml
+**/Dockerfile*
+
+
+# =============================================================================
+# Project folders provided via volume mounts at runtime
+# Excluding from build context keeps docker-compose build fast
+# =============================================================================
+bronze/
+bronze_metadata/
+dbt_project/
+airflow/dags/
+airflow/plugins/
+runners/
+extraction/
+dashboard/
+docs/
+note.txt
+
+
+# =============================================================================
+# What IS included in the build context after all exclusions:
+#   airflow/requirements.txt  <- the only file our Dockerfile COPYs
+# =============================================================================

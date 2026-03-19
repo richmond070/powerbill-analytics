@@ -445,20 +445,20 @@ jobs:
           PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
         run: |
           mkdir -p databricks
-          cat > databricks/databricks.cfg << EOF
-          [DEFAULT]
-          token         = ${DATABRICKS_TOKEN}
-          workspace_url = ${DATABRICKS_HOST}
-          warehouse_id  = ${DATABRICKS_WAREHOUSE_ID}
-
-          [POSTGRES]
-          host     = ${PG_HOST}
-          port     = ${PG_PORT:-5432}
-          dbname   = ${PG_DB}
-          user     = ${PG_USER}
-          password = ${PG_PASSWORD}
-          EOF
-          echo "databricks.cfg written (credentials redacted from log)"
+          printf "[DEFAULT]\ntoken = %s\nworkspace_url = %s\nwarehouse_id = %s\n\n[POSTGRES]\nhost = %s\nport = %s\ndbname = %s\nuser = %s\npassword = %s\n" \
+            "$DATABRICKS_TOKEN" \
+            "$DATABRICKS_HOST" \
+            "$DATABRICKS_WAREHOUSE_ID" \
+            "$PG_HOST" \
+            "${PG_PORT:-5432}" \
+            "$PG_DB" \
+            "$PG_USER" \
+            "$PG_PASSWORD" \
+            > databricks/databricks.cfg
+          echo "databricks.cfg written successfully"
+          # Verify the file has content without exposing secrets
+          echo "File size: $(wc -c < databricks/databricks.cfg) bytes"
+          echo "Line count: $(wc -l < databricks/databricks.cfg) lines"
 
       - name: Validate config structure + Ping Databricks (SELECT 1)
         run: |

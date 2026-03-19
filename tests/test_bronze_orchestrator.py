@@ -118,6 +118,20 @@ def _bootstrap_modules():
         spec.loader.exec_module(mod)
         loaded[mod_name] = mod
 
+    # ── Wire the observer package as a mock ───────────────────────────────
+    # bronze_orchestrator.py imports from .observer — we stub it out so
+    # the orchestrator loads cleanly without a real Postgres connection.
+    observer_mod = types.ModuleType("bronze.observer")
+    observer_mod.configure_logging        = MagicMock()
+    observer_mod.ensure_observability_tables = MagicMock()
+    observer_mod.BronzeLogger             = MagicMock()
+    observer_mod.AuditWriter              = MagicMock()
+    observer_mod.MetricsAggregator        = MagicMock()
+    observer_mod.ObservabilityContractParser = MagicMock()
+    observer_mod.ObservabilityRuleEvaluator  = MagicMock()
+    observer_mod.close_pool               = MagicMock()
+    sys.modules["bronze.observer"] = observer_mod
+
     # Load the orchestrator itself
     orch_path = os.path.join(BRONZE_DIR, "bronze_orchestrator.py")
     spec = importlib.util.spec_from_file_location(
@@ -145,20 +159,6 @@ PartitionConfig         = _MODS["partition_strategy"].PartitionConfig
 PartitionStrategy       = _MODS["partition_strategy"].PartitionStrategy
 
 
-# ---------------------------------------------------------------------------
-# Contract — loaded directly from bronze_ingestion_contract.json
-#
-# WHY: This project is metadata-driven. The contract is the single source of
-# truth for dataset schemas, row counts, and file locations. Reading it
-# directly means:
-#   1. New datasets added to the contract are automatically covered by tests
-#      that iterate over FULL_CONTRACT["datasets"] — no test edits needed.
-#   2. The tests reflect the actual contract the orchestrator uses at runtime,
-#      not a copy that can silently drift out of sync.
-#
-# The contract lives at the project root (one level above tests/).
-#
-# ---------------------------------------------------------------------------
 
 BRONZE_METADATA_DIR = os.path.join(PROJECT_ROOT, "bronze_metadata")
 _CONTRACT_PATH = os.path.join(BRONZE_METADATA_DIR, "bronze_ingestion_contract.json")
@@ -290,7 +290,6 @@ class OrchestratorTestBase(unittest.TestCase):
         orch.db_client  = MagicMock()
         orch.logger     = SQLExecutionLogger(log_file=self.log_file)
 
-        # ── Observability layer (refactored orchestrator) ──────────────
         orch._audit     = MagicMock()
         orch._metrics   = MagicMock()
         orch._obs_rules = {}

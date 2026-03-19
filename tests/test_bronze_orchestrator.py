@@ -267,12 +267,7 @@ class OrchestratorTestBase(unittest.TestCase):
         contract: dict = None,
         catalog: str = "main",
         schema: str = "bronze",
-    ) -> BronzeLayerOrchestrator: # type: ignore
-        """
-        Bypass __init__ and wire all components manually.
-        DatabricksSQLClient and DataDownloader are always MagicMocks.
-        BronzeSQLGenerator, SQLExecutionLogger, and partition modules are real.
-        """
+    ) -> BronzeLayerOrchestrator:
         orch = BronzeLayerOrchestrator.__new__(BronzeLayerOrchestrator)
         orch.contract_path = self.contract_file
         orch.config_path   = self.config_file
@@ -294,6 +289,11 @@ class OrchestratorTestBase(unittest.TestCase):
         orch.downloader = MagicMock(spec=DataDownloader)
         orch.db_client  = MagicMock()
         orch.logger     = SQLExecutionLogger(log_file=self.log_file)
+
+        # ── Observability layer (refactored orchestrator) ──────────────
+        orch._audit     = MagicMock()
+        orch._metrics   = MagicMock()
+        orch._obs_rules = {}
 
         # Default mock behaviours
         orch.db_client.execute_sql.return_value = make_success_result()

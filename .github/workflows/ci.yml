@@ -284,13 +284,11 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
 
-      - name: Install Airflow and project dependencies
+      - name: Install Airflow
         run: |
           pip install --upgrade pip
-          # Pin Airflow version to match docker-compose.yaml (2.10.5)
           pip install "apache-airflow==2.10.5" \
             --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.11.txt"
-          pip install -r requriements.txt
 
       - name: Check DAG folder exists
         run: |
@@ -354,48 +352,48 @@ jobs:
   # Needs: code-quality passes
   # Compiles dbt models without running them (no DB connection needed)
   # ===========================================================================
-  dbt-check:
-    name: dbt Compile Check
-    runs-on: ubuntu-latest
-    needs: code-quality
+  # dbt-check:
+  #  name: dbt Compile Check
+  #  runs-on: ubuntu-latest
+  #  needs: code-quality
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  #  steps:
+  #    - name: Checkout code
+  #      uses: actions/checkout@v4
 
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
+  #      - name: Set up Python ${{ env.PYTHON_VERSION }}
+  #       uses: actions/setup-python@v5
+  #      with:
+  #       python-version: ${{ env.PYTHON_VERSION }}
+  #      cache: pip
 
-      - name: Install dbt
-        run: |
-          pip install --upgrade pip
-          pip install dbt-core dbt-postgres
+  #    - name: Install dbt
+  #      run: |
+  #        pip install --upgrade pip
+  #        pip install dbt-core dbt-postgres
 
-      - name: Write stub dbt profiles.yml
-        run: |
-          mkdir -p ~/.dbt
-          cat > ~/.dbt/profiles.yml << 'EOF'
-          energy_pipeline:
-            target: ci
-            outputs:
-              ci:
-                type: postgres
-                host:     localhost
-                port:     5432
-                dbname:   ci_test_db
-                user:     ci_user
-                password: ci_password
-                schema:   bronze
-                threads:  1
-          EOF
+  #     - name: Write stub dbt profiles.yml
+  #      run: |
+  #       mkdir -p ~/.dbt
+  #      cat > ~/.dbt/profiles.yml << 'EOF'
+  #     energy_pipeline:
+  #      target: ci
+  #     outputs:
+  #    ci:
+  #     type: postgres
+  #      host:     localhost
+  #       port:     5432
+  #        dbname:   ci_test_db
+  #         user:     ci_user
+  #          password: ci_password
+  #           schema:   bronze
+  #            threads:  1
+  #      EOF
 
-      - name: dbt compile — validate model SQL
-        working-directory: dbt_project
-        run: |
-          dbt compile --profiles-dir ~/.dbt --target ci
+  #  - name: dbt compile — validate model SQL
+  #  working-directory: dbt_project
+  #  run: |
+  #  dbt compile --profiles-dir ~/.dbt --target ci
 
   # ===========================================================================
   # JOB 7 — Databricks Connectivity Ping

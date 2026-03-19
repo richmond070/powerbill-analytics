@@ -5,7 +5,7 @@ name: CI
 # ---------------------------------------------------------------------------
 on:
   push:
-    branches: ["**"]          # Every push on every branch
+    branches: ["**"] # Every push on every branch
   pull_request:
     branches: [feature/ci-setup, main] # PRs targeting develop or main
 
@@ -15,9 +15,9 @@ on:
 env:
   PYTHON_VERSION: "3.11"
   DATABRICKS_CATALOG: "main"
-  DATABRICKS_SCHEMA:  "bronze"
-  STAGING_ROOT:       "/tmp/staging"
-  DELTA_ROOT:         "/tmp/delta"
+  DATABRICKS_SCHEMA: "bronze"
+  STAGING_ROOT: "/tmp/staging"
+  DELTA_ROOT: "/tmp/delta"
 
 # ===========================================================================
 # JOB 1 — Code Quality (lint + format)
@@ -51,21 +51,17 @@ jobs:
             --ignore=E501,W503,E203 \
             --exclude=__pycache__,.venv
 
-      - name: black — format and commit
+      - name: black — format check
         run: |
-          black bronze/ extraction/ runners/ --line-length=120
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet || git commit -am "style: auto-apply black formatting [skip ci]"
-          git push
+          black --check bronze/ extraction/ runners/ \
+            --line-length=120
 
-
-# ===========================================================================
-# JOB 2 — Unit Tests
-# Runs on: every push / every PR
-# Needs: code-quality passes
-# Uses a stub config — no live Databricks or Postgres connection needed
-# ===========================================================================
+  # ===========================================================================
+  # JOB 2 — Unit Tests
+  # Runs on: every push / every PR
+  # Needs: code-quality passes
+  # Uses a stub config — no live Databricks or Postgres connection needed
+  # ===========================================================================
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -76,9 +72,9 @@ jobs:
       postgres:
         image: postgres:13
         env:
-          POSTGRES_USER:     ci_user
+          POSTGRES_USER: ci_user
           POSTGRES_PASSWORD: ci_password
-          POSTGRES_DB:       ci_test_db
+          POSTGRES_DB: ci_test_db
         ports:
           - 5432:5432
         options: >-
@@ -124,10 +120,10 @@ jobs:
 
       - name: Run full test suite
         env:
-          PG_HOST:     localhost
-          PG_PORT:     5432
-          PG_DB:       ci_test_db
-          PG_USER:     ci_user
+          PG_HOST: localhost
+          PG_PORT: 5432
+          PG_DB: ci_test_db
+          PG_USER: ci_user
           PG_PASSWORD: ci_password
         run: |
           pytest tests/ -v --tb=short
@@ -139,13 +135,12 @@ jobs:
           name: pytest-results
           path: .pytest_cache/
 
-
-# ===========================================================================
-# JOB 3 — Contract Validation
-# Runs on: every push / every PR
-# Needs: code-quality passes
-# Validates bronze_metadata/bronze_ingestion_contract.json is well-formed
-# ===========================================================================
+  # ===========================================================================
+  # JOB 3 — Contract Validation
+  # Runs on: every push / every PR
+  # Needs: code-quality passes
+  # Validates bronze_metadata/bronze_ingestion_contract.json is well-formed
+  # ===========================================================================
   contract-validation:
     name: Contract Validation
     runs-on: ubuntu-latest
@@ -218,13 +213,12 @@ jobs:
                     f"{d.get('total_rows', 0):,} rows)")
           EOF
 
-
-# ===========================================================================
-# JOB 4 — Bronze Pipeline Smoke Test
-# Runs on: every push / every PR
-# Needs: unit-tests + contract-validation both pass
-# Runs the full orchestrator dry-run (no Databricks connection)
-# ===========================================================================
+  # ===========================================================================
+  # JOB 4 — Bronze Pipeline Smoke Test
+  # Runs on: every push / every PR
+  # Needs: unit-tests + contract-validation both pass
+  # Runs the full orchestrator dry-run (no Databricks connection)
+  # ===========================================================================
   bronze-smoke-test:
     name: Bronze Pipeline Smoke Test
     runs-on: ubuntu-latest
@@ -269,13 +263,12 @@ jobs:
                  tests/test_partition_strategy.py \
                  -v --tb=short -k "dry_run or sql or partition"
 
-
-# ===========================================================================
-# JOB 5 — Airflow DAG Check
-# Runs on: every push / every PR
-# Needs: code-quality passes
-# Checks all DAGs in airflow/dags/ for syntax errors and import failures
-# ===========================================================================
+  # ===========================================================================
+  # JOB 5 — Airflow DAG Check
+  # Runs on: every push / every PR
+  # Needs: code-quality passes
+  # Checks all DAGs in airflow/dags/ for syntax errors and import failures
+  # ===========================================================================
   airflow-dag-check:
     name: Airflow DAG Check
     runs-on: ubuntu-latest
@@ -355,13 +348,12 @@ jobs:
           print(f"\nPASS: All {len(dag_files)} DAG(s) imported successfully")
           EOF
 
-
-# ===========================================================================
-# JOB 6 — dbt Compile Check
-# Runs on: every push / every PR
-# Needs: code-quality passes
-# Compiles dbt models without running them (no DB connection needed)
-# ===========================================================================
+  # ===========================================================================
+  # JOB 6 — dbt Compile Check
+  # Runs on: every push / every PR
+  # Needs: code-quality passes
+  # Compiles dbt models without running them (no DB connection needed)
+  # ===========================================================================
   dbt-check:
     name: dbt Compile Check
     runs-on: ubuntu-latest
@@ -405,13 +397,12 @@ jobs:
         run: |
           dbt compile --profiles-dir ~/.dbt --target ci
 
-
-# ===========================================================================
-# JOB 7 — Databricks Connectivity Ping
-# Runs on: PRs to main + pushes to main ONLY
-# Needs: bronze-smoke-test passes
-# Uses real credentials from GitHub Secrets — live SELECT 1 call
-# ===========================================================================
+  # ===========================================================================
+  # JOB 7 — Databricks Connectivity Ping
+  # Runs on: PRs to main + pushes to main ONLY
+  # Needs: bronze-smoke-test passes
+  # Uses real credentials from GitHub Secrets — live SELECT 1 call
+  # ===========================================================================
   databricks-connectivity:
     name: Databricks Connectivity Ping
     runs-on: ubuntu-latest
@@ -441,14 +432,14 @@ jobs:
       # This mirrors the exact structure of your local databricks/databricks.cfg
       - name: Write databricks.cfg from GitHub Secrets
         env:
-          DATABRICKS_TOKEN:        ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_HOST:         ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_WAREHOUSE_ID: ${{ secrets.DATABRICKS_WAREHOUSE_ID }}
-          PG_HOST:                 ${{ secrets.PG_HOST }}
-          PG_PORT:                 ${{ secrets.PG_PORT }}
-          PG_DB:                   ${{ secrets.PG_DB }}
-          PG_USER:                 ${{ secrets.PG_USER }}
-          PG_PASSWORD:             ${{ secrets.PG_PASSWORD }}
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_PORT: ${{ secrets.PG_PORT }}
+          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
         run: |
           mkdir -p databricks
           cat > databricks/databricks.cfg << EOF

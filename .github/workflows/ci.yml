@@ -96,7 +96,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requriements/dev.txt
+          pip install -r requirements/dev.txt
 
       # Write a stub config so DatabricksSQLClient can parse it during tests.
       # The orchestrator tests mock DatabricksSQLClient entirely — no real
@@ -242,7 +242,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requriements/dev.txt
+          pip install -r requirements/dev.txt
 
       - name: Write stub databricks.cfg
         run: |
@@ -429,7 +429,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requriements/base.txt
+          pip install -r requirements/base.txt
 
       # Reconstruct databricks/databricks.cfg from GitHub Secrets
       # This mirrors the exact structure of your local databricks/databricks.cfg

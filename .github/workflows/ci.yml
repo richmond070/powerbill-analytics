@@ -444,21 +444,15 @@ jobs:
           PG_USER: ${{ secrets.PG_USER }}
           PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
         run: |
-          mkdir -p databricks
-          printf "[DEFAULT]\ntoken = %s\nworkspace_url = %s\nwarehouse_id = %s\n\n[POSTGRES]\nhost = %s\nport = %s\ndbname = %s\nuser = %s\npassword = %s\n" \
-            "$DATABRICKS_TOKEN" \
-            "$DATABRICKS_HOST" \
-            "$DATABRICKS_WAREHOUSE_ID" \
-            "$PG_HOST" \
-            "${PG_PORT:-5432}" \
-            "$PG_DB" \
-            "$PG_USER" \
-            "$PG_PASSWORD" \
-            > databricks/databricks.cfg
-          echo "databricks.cfg written successfully"
-          # Verify the file has content without exposing secrets
-          echo "File size: $(wc -c < databricks/databricks.cfg) bytes"
-          echo "Line count: $(wc -l < databricks/databricks.cfg) lines"
+          # Print length of each secret — never prints the value itself
+          echo "DATABRICKS_TOKEN length:        ${#DATABRICKS_TOKEN}"
+          echo "DATABRICKS_HOST length:         ${#DATABRICKS_HOST}"
+          echo "DATABRICKS_WAREHOUSE_ID length: ${#DATABRICKS_WAREHOUSE_ID}"
+          echo "PG_HOST length:                 ${#PG_HOST}"
+          echo "PG_PORT length:                 ${#PG_PORT}"
+          echo "PG_DB length:                   ${#PG_DB}"
+          echo "PG_USER length:                 ${#PG_USER}"
+          echo "PG_PASSWORD length:             ${#PG_PASSWORD}"
 
       - name: Validate config structure + Ping Databricks (SELECT 1)
         run: |

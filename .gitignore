@@ -4,3 +4,4 @@ databricks/databricks.cfg
 .vscode/
 databricks/dbfs_uploder.py
 airflow/logs/
+bronze_ingestion_log.json

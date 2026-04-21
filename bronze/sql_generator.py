@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS {catalog}.{schema}.{table_name} (
 )
 USING DELTA
 {partition_clause}
-LOCATION '{table_location}'
+{location_clause}
 TBLPROPERTIES (
     'delta.enableChangeDataFeed' = 'true',
     'delta.autoOptimize.optimizeWrite' = 'true',
@@ -107,8 +107,7 @@ class BronzeSQLGenerator:
         self,
         catalog: str = "main",
         schema: str = "bronze",
-        base_location: str = "/mnt/delta/bronze",
-        staging_location: str = "/mnt/staging/raw",
+        base_location: str = "",
     ):
         """
         Initialize SQL generator
@@ -122,7 +121,6 @@ class BronzeSQLGenerator:
         self.catalog = catalog
         self.schema = schema
         self.base_location = base_location
-        self.staging_location = staging_location
 
     def generate_create_table_sql(
         self, dataset_metadata: Dict, partition_config: PartitionConfig, timestamp: str
@@ -148,7 +146,8 @@ class BronzeSQLGenerator:
         partition_clause = PartitionHeuristics.generate_partition_clause(partition_config)
 
         # Table location
-        table_location = f"{self.base_location}/{dataset_name}"
+        table_location = f"{self.base_location}/{dataset_name}" if self.base_location else ""
+        location_clause = f"LOCATION '{table_location}'" if table_location else ""
 
         # Fill template
         sql = BronzeSQLTemplate.CREATE_TABLE_TEMPLATE.format(
@@ -160,14 +159,14 @@ class BronzeSQLGenerator:
             table_name=f"bronze_{dataset_name}",
             column_definitions=column_ddl,
             partition_clause=partition_clause,
-            table_location=table_location,
+            location_clause=location_clause,
             source_url=dataset_metadata.get("api_endpoint", "N/A"),
         )
 
         return sql
 
     def generate_ingestion_sql(
-        self, dataset_metadata: Dict, partition_config: PartitionConfig, use_merge: bool = False
+        self, dataset_metadata: Dict, partition_config: PartitionConfig, source_url: str, use_merge: bool = False
     ) -> str:
         """
         Generate ingestion SQL (COPY INTO or MERGE)
@@ -191,8 +190,8 @@ class BronzeSQLGenerator:
         hash_columns = ", ".join([f"CAST({col} AS STRING)" for col in column_names])
 
         # Source and target paths
-        source_path = f"{self.staging_location}/{dataset_name}/*.parquet"
-        bad_records_path = f"{self.staging_location}/{dataset_name}/_bad_records"
+        source_path = source_url
+        bad_records_path = f"{source_url.rsplit('/', 1)[0]}/_bad_records"
 
         table_name = f"bronze_{dataset_name}"
 

@@ -1,0 +1,11 @@
+[DEFAULT]
+token = dapiaxxxxxxxxxxxxxxxxxxx
+workspace_url = https://dbc-xxxxxxxx-xx.cloud.databricks.com
+warehouse_id = 8xxxxxxxxxxx
+
+[POSTGRES]
+host     = localhost
+port     = xxxx
+dbname   = xxxxxx
+user     = postgres
+password = xxxxxxxx

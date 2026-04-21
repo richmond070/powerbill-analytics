@@ -1,23 +1,23 @@
 """
-Audit Writer
-Manages lifecycle writes to the `bronze_ingestion_audit` table in PostgreSQL.
+Audit Writer  (thread-safe)
+===========================
+Manages lifecycle writes to `bronze_ingestion_audit` in PostgreSQL.
 Acts as the Bronze layer's "black box recorder" (bronze_observability.md §4).
+
+Thread-safety
+-------------
+Every public method calls pg_connection() which borrows one connection
+from the ThreadedConnectionPool for the duration of the with-block and
+returns it immediately after commit/rollback.  No connection object is
+stored on the instance, so concurrent threads never share a connection.
 
 Lifecycle (per ingestion run):
   1. insert_running()   — called immediately after trace_id is generated
-                          writes status=RUNNING before any SQL executes
   2. update_completed() — called after Databricks SQL API returns
-                          updates status, row_count, duration_ms, error_message
-
-The audit_id returned by insert_running() is used by update_completed()
-so only a single SELECT-by-trace_id is needed; the caller holds the PK.
-
-Referenced by: bronze_orchestrator.py
 """
 
 import logging
-
-# from datetime import datetime, timezone
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -30,14 +30,18 @@ class AuditWriter:
     """
     Writes ingestion lifecycle records to `bronze_ingestion_audit`.
 
-    All methods accept an explicit `config_path` parameter so the same
-    db_pool singleton used by the rest of the pipeline is reused.
+    Thread-safe: each method opens and closes its own database connection
+    via pg_connection().  No state is stored between calls.
 
     Args:
         config_path: Path to databricks.cfg (forwarded to db_pool).
     """
 
     def __init__(self, config_path: str = "databricks/databricks.cfg") -> None:
+        # Store config path only — no connection held on the instance.
+        # This is intentional: holding a connection on self would mean
+        # all threads share the same connection object, causing
+        # "connection already used by another thread" errors under psycopg2.
         self.config_path = config_path
 
     # ------------------------------------------------------------------
@@ -52,7 +56,9 @@ class AuditWriter:
     ) -> int:
         """
         Insert a RUNNING audit record immediately after trace_id generation.
-        Must be called before any SQL is submitted to Databricks.
+
+        Thread-safety: borrows a fresh connection from the pool for this
+        call only.  Safe to call from multiple threads simultaneously.
 
         Args:
             trace_id:           Run correlation UUID.
@@ -69,6 +75,8 @@ class AuditWriter:
                 (%s, %s, %s, 'RUNNING')
             RETURNING id;
         """
+        # pg_connection() borrows a connection, commits on exit, returns it.
+        # Each thread that calls this method gets a different connection.
         with pg_connection(self.config_path) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql, (str(trace_id), dataset_name, partition_strategy))
@@ -77,10 +85,10 @@ class AuditWriter:
         logger.debug(
             "Audit record inserted (RUNNING)",
             extra={
-                "event": "audit_insert_running",
-                "trace_id": str(trace_id),
+                "event":        "audit_insert_running",
+                "trace_id":     str(trace_id),
                 "dataset_name": dataset_name,
-                "audit_id": audit_id,
+                "audit_id":     audit_id,
             },
         )
         return audit_id
@@ -97,16 +105,17 @@ class AuditWriter:
     ) -> None:
         """
         Update the audit record with final execution state.
-        Called after Databricks SQL API returns SUCCESS or FAILURE.
+
+        Thread-safety: borrows a fresh connection for this call only.
 
         Args:
             audit_id:      PK returned by insert_running().
             trace_id:      Run correlation UUID (for log correlation).
             statement_id:  Databricks statement ID.
-            status:        "SUCCESS" | "FAILED".
-            row_count:     Rows inserted/merged (None if not available).
+            status:        "SUCCEEDED" | "FAILED" | "CANCELED".
+            row_count:     Rows inserted/merged (None if unavailable).
             duration_ms:   Total wall-clock duration in milliseconds.
-            error_message: Error description when status == "FAILED".
+            error_message: Error description when status != "SUCCEEDED".
         """
         # Normalise Databricks statuses → audit table CHECK constraint values
         audit_status = "SUCCESS" if status == "SUCCEEDED" else "FAILED"
@@ -123,27 +132,23 @@ class AuditWriter:
         """
         with pg_connection(self.config_path) as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    sql,
-                    (
-                        statement_id,
-                        audit_status,
-                        row_count,
-                        duration_ms,
-                        error_message,
-                        audit_id,
-                    ),
-                )
+                cur.execute(sql, (
+                    statement_id,
+                    audit_status,
+                    row_count,
+                    duration_ms,
+                    error_message,
+                    audit_id,
+                ))
 
         logger.debug(
-            "Audit record updated (%s)",
-            audit_status,
+            "Audit record updated (%s)", audit_status,
             extra={
-                "event": "audit_update_completed",
-                "trace_id": str(trace_id),
-                "audit_id": audit_id,
-                "status": audit_status,
-                "row_count": row_count,
+                "event":       "audit_update_completed",
+                "trace_id":    str(trace_id),
+                "audit_id":    audit_id,
+                "status":      audit_status,
+                "row_count":   row_count,
                 "duration_ms": duration_ms,
             },
         )
@@ -159,11 +164,7 @@ class AuditWriter:
         Convenience wrapper — marks a RUNNING record as FAILED.
         Use when an exception is raised before the Databricks API returns.
 
-        Args:
-            audit_id:      PK returned by insert_running().
-            trace_id:      Run correlation UUID.
-            error_message: Exception message.
-            duration_ms:   Elapsed time before failure (best-effort).
+        Thread-safety: borrows a fresh connection for this call only.
         """
         self.update_completed(
             audit_id=audit_id,

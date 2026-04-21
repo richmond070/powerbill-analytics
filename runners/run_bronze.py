@@ -245,15 +245,20 @@ def main() -> None:
         print(f"\nERROR — Missing required file:\n{e}")
         sys.exit(1)
 
-    staging_root = os.getenv("STAGING_ROOT", "/tmp/staging/raw")
-    delta_root = os.getenv("DELTA_ROOT", "/tmp/delta/bronze")
+    #staging_root = os.getenv("STAGING_ROOT", str(PROJECT_ROOT / "staging" / "raw")).strip().replace("\\", "/")
+    wait_timeout = int(os.getenv("SQL_WAIT_TIMEOUT", "900")) 
+    databricks_staging = os.getenv(
+        "DATABRICKS_STAGING",
+        "/Volumes/main/bronze/staging/raw"
+    )
+    delta_root   = os.getenv("DELTA_ROOT",   "")
 
     # ── Step 3: Print run configuration ──────────────────────────────────
     print(f"  Contract     : {contract_path}")
     print(f"  Config       : {config_path}")
     print(f"  Catalog      : {args.catalog}")
     print(f"  Schema       : {args.schema}")
-    print(f"  Staging Root : {staging_root}")
+    #print(f"  Staging Root : {staging_root}")
     print(f"  Delta Root   : {delta_root}")
     print()
     print("Run options:")
@@ -264,7 +269,7 @@ def main() -> None:
     print()
 
     if args.dry_run:
-        print("⚠  DRY RUN MODE — SQL will be generated but NOT executed against Databricks")
+        print(" DRY RUN MODE — SQL will be generated but NOT executed against Databricks")
         print()
 
     # ── Step 4: Instantiate orchestrator ─────────────────────────────────
@@ -275,8 +280,9 @@ def main() -> None:
             config_path=config_path,
             catalog=args.catalog,
             schema=args.schema,
-            staging_root=staging_root,
+            #staging_root=staging_root,
             delta_root=delta_root,
+            #databricks_staging=databricks_staging
         )
         print("Orchestrator initialized.\n")
     except Exception as e:

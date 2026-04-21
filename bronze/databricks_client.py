@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import requests
 import configparser
+import requests.exceptions
 
 
 @dataclass
@@ -27,6 +28,8 @@ class SQLExecutionResult:
 
 CONFIG_PATH = "databricks/databricks.cfg"
 
+MAX_POLL_RETRIES  = 5  
+POLL_RETRY_WAIT_S = 10
 
 class DatabricksSQLClient:
     """
@@ -134,29 +137,56 @@ class DatabricksSQLClient:
         return result["statement_id"]
 
     def _wait_for_completion(self, statement_id: str, wait_timeout: int) -> SQLExecutionResult:
-        """
-        Wait for statement execution to complete
-
-        Args:
-            statement_id: Statement ID to monitor
-            wait_timeout: Max wait time in seconds
-
-        Returns:
-            SQLExecutionResult
-        """
-        endpoint = f"{self.api_base}/sql/statements/{statement_id}"
-
-        start_time = time.time()
-        poll_interval = 1  # Start with 1 second
+        endpoint      = f"{self.api_base}/sql/statements/{statement_id}"
+        start_time    = time.time()
+        poll_interval = 1       # starts at 1s, grows to 10s max
 
         while True:
-            if time.time() - start_time > wait_timeout:
-                raise TimeoutError(f"SQL execution timed out after {wait_timeout}s")
 
-            response = requests.get(endpoint, headers=self.headers)
+            if time.time() - start_time > wait_timeout:
+                raise TimeoutError(
+                    f"SQL execution timed out after {wait_timeout}s "
+                    f"(statement_id={statement_id})"
+                )
+
+            network_retries = 0
+            response = None
+
+            while network_retries <= MAX_POLL_RETRIES:
+                try:
+                    response = requests.get(
+                        endpoint,
+                        headers=self.headers,
+                        timeout=30,     
+                    )
+                    break              
+
+                except (
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.Timeout,
+                    requests.exceptions.ChunkedEncodingError,
+                ) as e:
+                    network_retries += 1
+
+                    if network_retries > MAX_POLL_RETRIES:
+                        raise TimeoutError(
+                            f"Lost connectivity to Databricks after "
+                            f"{MAX_POLL_RETRIES} retries "
+                            f"(statement_id={statement_id}): {e}"
+                        )
+
+                    print(
+                        f"   [WARN] Network error polling statement status — "
+                        f"retry {network_retries}/{MAX_POLL_RETRIES} "
+                        f"in {POLL_RETRY_WAIT_S}s: {e}"
+                    )
+                    time.sleep(POLL_RETRY_WAIT_S)
 
             if response.status_code != 200:
-                raise Exception(f"Failed to get statement status: {response.text}")
+                raise Exception(
+                    f"Failed to get statement status "
+                    f"(statement_id={statement_id}): {response.text}"
+                )
 
             result = response.json()
             status = result["status"]["state"]
@@ -166,19 +196,26 @@ class DatabricksSQLClient:
                     statement_id=statement_id,
                     status="SUCCEEDED",
                     row_count=self._extract_row_count(result),
-                    duration_ms=0,  # Will be set by caller
+                    duration_ms=0,      # set by execute_sql() after this returns
                 )
 
             elif status in ["FAILED", "CANCELED", "CLOSED"]:
-                error_msg = result.get("status", {}).get("error", {}).get("message", "Unknown error")
+                error_msg = (
+                    result.get("status", {})
+                        .get("error", {})
+                        .get("message", "Unknown error")
+                )
                 return SQLExecutionResult(
-                    statement_id=statement_id, status=status, row_count=None, duration_ms=0, error_message=error_msg
+                    statement_id=statement_id,
+                    status=status,
+                    row_count=None,
+                    duration_ms=0,
+                    error_message=error_msg,
                 )
 
-            # Still running - wait and retry
             time.sleep(poll_interval)
-            # Exponential backoff, max 10s
-            poll_interval = min(poll_interval * 1.5, 10)
+            poll_interval = min(poll_interval * 1.5, 10) 
+            
 
     def _extract_row_count(self, result: Dict) -> Optional[int]:
         """Extract row count from result"""
@@ -215,7 +252,7 @@ class DatabricksSQLClient:
                 results.append(result)
 
                 if result.status != "SUCCEEDED":
-                    print(f"  ❌ Failed: {result.error_message}")
+                    print(f" Failed: {result.error_message}")
                     if not continue_on_error:
                         break
                 else:

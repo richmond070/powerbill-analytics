@@ -69,9 +69,9 @@ import pytest
 # ---------------------------------------------------------------------------
 # Modules under test
 # ---------------------------------------------------------------------------
-from bronze.observer.metrics_aggregator import MetricsAggregator
-from bronze.observer.audit_writer import AuditWriter
-from bronze.observer.db_pool import close_pool, get_pool
+from bronze.ingestion.observer.metrics_aggregator import MetricsAggregator
+from bronze.ingestion.observer.audit_writer import AuditWriter
+from bronze.ingestion.observer.db_pool import close_pool, get_pool
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -111,7 +111,7 @@ def pg_schema():
     """
     Session-scoped: ensure both observability tables exist before any test.
     """
-    from bronze.observer.observability_schema import ensure_observability_tables
+    from bronze.ingestion.observer.observability_schema import ensure_observability_tables
     ensure_observability_tables()
     yield
 

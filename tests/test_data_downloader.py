@@ -37,14 +37,14 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from bronze.data_downloader import DataDownloader, DataValidator, DownloadResult
+from bronze.ingestion.data_downloader import DataDownloader, DataValidator, DownloadResult
 
 
 # ---------------------------------------------------------------------------
 # Contract fixtures — sourced verbatim from bronze_ingestion_contract.json
 # ---------------------------------------------------------------------------
 
-BRONZE_METADATA_DIR = os.path.join(PROJECT_ROOT, "bronze_metadata")
+BRONZE_METADATA_DIR = os.path.join(PROJECT_ROOT, "bronze", "bronze_metadata")
 _CONTRACT_PATH = os.path.join(BRONZE_METADATA_DIR, "bronze_ingestion_contract.json")
 
 if not os.path.exists(_CONTRACT_PATH):

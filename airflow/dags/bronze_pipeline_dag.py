@@ -33,7 +33,7 @@ API_CONFIG_PATH = os.getenv(
 # Where runner.py writes the finished contract
 CONTRACT_PATH = os.getenv(
     "BRONZE_CONTRACT_PATH",
-    "/opt/airflow/bronze_metadata/bronze_ingestion_contract.json"
+    "/opt/airflow/bronze/bronze_metadata/bronze_ingestion_contract.json"
 )
 
 # Databricks credentials
@@ -115,7 +115,7 @@ def validate_env(**kwargs) -> None:
     Checks:
       - api_config.json is present and parseable
       - databricks.cfg is present
-      - bronze_metadata/ output directory exists (creates it if not)
+      - bronze/bronze_metadata/ output directory exists (creates it if not)
       - DATABRICKS_CATALOG and DATABRICKS_SCHEMA are set
     """
     errors = []
@@ -362,7 +362,7 @@ def create_bronze_table(dataset_name: str, **kwargs) -> None:
     """
     log.info("=== CREATE TABLE: %s ===", dataset_name)
 
-    from bronze.bronze_orchestrator import BronzeLayerOrchestrator
+    from bronze.ingestion.bronze_orchestrator import BronzeLayerOrchestrator
 
     orchestrator = BronzeLayerOrchestrator(
         contract_path = CONTRACT_PATH,
@@ -398,7 +398,7 @@ def ingest_dataset(dataset_name: str, **kwargs) -> None:
     """
     log.info("=== INGEST: %s ===", dataset_name)
 
-    from bronze.bronze_orchestrator import BronzeLayerOrchestrator
+    from bronze.ingestion.bronze_orchestrator import BronzeLayerOrchestrator
 
     orchestrator = BronzeLayerOrchestrator(
         contract_path = CONTRACT_PATH,

@@ -135,11 +135,11 @@ def _bootstrap_modules():
     # Load the orchestrator itself
     orch_path = os.path.join(BRONZE_DIR, "bronze_orchestrator.py")
     spec = importlib.util.spec_from_file_location(
-        "bronze.bronze_orchestrator", orch_path, submodule_search_locations=[]
+        "bronze.ingestion.bronze_orchestrator", orch_path, submodule_search_locations=[]
     )
     orch_mod = importlib.util.module_from_spec(spec)
     orch_mod.__package__ = "bronze"
-    sys.modules["bronze.bronze_orchestrator"] = orch_mod
+    sys.modules["bronze.ingestion.bronze_orchestrator"] = orch_mod
     spec.loader.exec_module(orch_mod)
     loaded["bronze_orchestrator"] = orch_mod
 
@@ -160,7 +160,7 @@ PartitionStrategy       = _MODS["partition_strategy"].PartitionStrategy
 
 
 
-BRONZE_METADATA_DIR = os.path.join(PROJECT_ROOT, "bronze_metadata")
+BRONZE_METADATA_DIR = os.path.join(PROJECT_ROOT, "bronze", "bronze_metadata")
 _CONTRACT_PATH = os.path.join(BRONZE_METADATA_DIR, "bronze_ingestion_contract.json")
 
 if not os.path.exists(_CONTRACT_PATH):

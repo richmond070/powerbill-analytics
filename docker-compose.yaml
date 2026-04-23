@@ -1,16 +1,13 @@
-version: '3.8'
-
+version: "3.8"
 
 # =============================================================================
 # SHARED AIRFLOW CONFIGURATION
 # YAML anchor — defined once, merged into every airflow-* service via <<:
 # =============================================================================
 x-airflow-common: &airflow-common
-
   image: apache/airflow:2.9.0-python3.11
 
   environment:
-
     # --- Executor ------------------------------------------------------------
     # LocalExecutor: tasks run as subprocesses inside the scheduler container.
     # Eliminates Redis + Celery worker containers entirely.
@@ -55,7 +52,7 @@ x-airflow-common: &airflow-common
     # --- Contract ------------------------------------------------------------
     # Where finalise_contract writes the finished contract JSON.
     # bronze_metadata/ is mounted at /opt/airflow/bronze_metadata.
-    BRONZE_CONTRACT_PATH: /opt/airflow/bronze_metadata/bronze_ingestion_contract.json
+    BRONZE_CONTRACT_PATH: /opt/airflow/bronze/bronze_metadata/bronze_ingestion_contract.json
 
     # --- Databricks ----------------------------------------------------------
     DATABRICKS_CFG_PATH: /opt/airflow/databricks/databricks.cfg
@@ -82,7 +79,7 @@ x-airflow-common: &airflow-common
 
     # --- Python path ---------------------------------------------------------
     # Makes both packages importable inside the container:
-    #   from bronze.bronze_orchestrator import BronzeLayerOrchestrator
+    #   from bronze.ingestion.bronze_orchestrator import BronzeLayerOrchestrator
     #   from extraction.resolver        import HuggingFaceDatasetResolver
     #   from extraction.validator       import ParquetValidator
     # Both bronze/ and extraction/ are mounted under /opt/airflow/
@@ -111,11 +108,11 @@ x-airflow-common: &airflow-common
     - ./extraction:/opt/airflow/extraction
 
     # Bronze module — Phases 2 + 3 of the pipeline
-    # Importable as: from bronze.bronze_orchestrator import BronzeLayerOrchestrator
+    # Importable as: from bronze.ingestion.bronze_orchestrator import BronzeLayerOrchestrator
     - ./bronze:/opt/airflow/bronze
 
     # Contract output directory — written by finalise_contract, read by bronze
-    - ./bronze_metadata:/opt/airflow/bronze_metadata
+    - ./bronze/bronze_metadata:/opt/airflow/bronze/bronze_metadata
 
     # Databricks credentials: workspace_url, token, warehouse_id
     - ./databricks:/opt/airflow/databricks
@@ -130,12 +127,10 @@ x-airflow-common: &airflow-common
     postgres:
       condition: service_healthy
 
-
 # =============================================================================
 # SERVICES
 # =============================================================================
 services:
-
   # ---------------------------------------------------------------------------
   # 1. POSTGRES
   #
@@ -156,9 +151,9 @@ services:
     container_name: bronze_postgres
 
     environment:
-      POSTGRES_USER    : airflow
+      POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
-      POSTGRES_DB      : airflow_db    # Docker creates this automatically
+      POSTGRES_DB: airflow_db # Docker creates this automatically
 
     volumes:
       # Persistent data — survives container stop/start/restart
@@ -168,10 +163,10 @@ services:
       - ./postgres:/docker-entrypoint-initdb.d/
 
     healthcheck:
-      test        : ["CMD", "pg_isready", "-U", "airflow"]
-      interval    : 10s
-      timeout     : 5s
-      retries     : 5
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
       start_period: 10s
 
     ports:
@@ -179,7 +174,6 @@ services:
       - "5432:5432"
 
     restart: unless-stopped
-
 
   # ---------------------------------------------------------------------------
   # 2. AIRFLOW INIT
@@ -240,7 +234,6 @@ services:
 
     restart: "no"
 
-
   # ---------------------------------------------------------------------------
   # 3. AIRFLOW SCHEDULER
   #
@@ -261,13 +254,12 @@ services:
       test: >
         ["CMD-SHELL",
          "airflow jobs check --job-type SchedulerJob --hostname $$(hostname)"]
-      interval    : 30s
-      timeout     : 10s
-      retries     : 5
+      interval: 30s
+      timeout: 10s
+      retries: 5
       start_period: 30s
 
     restart: unless-stopped
-
 
   # ---------------------------------------------------------------------------
   # 4. AIRFLOW WEBSERVER
@@ -290,14 +282,13 @@ services:
       - "8080:8080"
 
     healthcheck:
-      test        : ["CMD", "curl", "--fail", "http://localhost:8080/health"]
-      interval    : 30s
-      timeout     : 10s
-      retries     : 5
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
       start_period: 60s
 
     restart: unless-stopped
-
 
 # =============================================================================
 # VOLUMES
@@ -307,7 +298,6 @@ services:
 volumes:
   postgres_data:
     driver: local
-
 
 # =============================================================================
 # FIRST-TIME STARTUP SEQUENCE

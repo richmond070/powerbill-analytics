@@ -55,8 +55,8 @@ import pytest
 # ---------------------------------------------------------------------------
 # The module under test
 # ---------------------------------------------------------------------------
-from bronze.observer.metrics_aggregator import MetricsAggregator
-from bronze.observer.db_pool import close_pool, get_pool
+from bronze.ingestion.observer.metrics_aggregator import MetricsAggregator
+from bronze.ingestion.observer.db_pool import close_pool, get_pool
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -93,7 +93,7 @@ def pg_schema():
     Uses observability_schema.ensure_observability_tables() — idempotent,
     so safe even if the tables already exist from a previous session.
     """
-    from bronze.observer.observability_schema import ensure_observability_tables
+    from bronze.ingestion.observer.observability_schema import ensure_observability_tables
     ensure_observability_tables()
     yield
     # Nothing to drop — we leave the schema intact so the next run is fast.

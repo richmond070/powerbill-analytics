@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 CONFIG_PATH = SCRIPT_DIR / "api_config.json"
-OUTPUT_DIR = SCRIPT_DIR.parent / "bronze_metadata"
+OUTPUT_DIR = SCRIPT_DIR.parent / "bronze" / "bronze_metadata"
 BRONZE_CONTRACT_PATH = OUTPUT_DIR / "bronze_ingestion_contract.json"
 
 

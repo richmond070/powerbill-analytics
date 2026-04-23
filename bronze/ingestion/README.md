@@ -73,19 +73,19 @@ External APIs (HuggingFace)
 
 ## Tech Stack
 
-| Component | Technology |
-|---|---|
-| Orchestration | Python 3.x |
-| Processing Engine | Apache Spark / Databricks SQL |
-| Storage Format | Delta Lake (Parquet) |
-| Catalog | Unity Catalog |
-| Control Plane | PostgreSQL |
-| Observability | Structured JSON logging + Postgres metrics |
-| Workflow Scheduler | Apache Airflow |
-| Data Transformation | dbt |
-| Dashboard | Plotly Dash |
-| Testing | pytest |
-| Containerization | Docker / docker-compose |
+| Component           | Technology                                 |
+| ------------------- | ------------------------------------------ |
+| Orchestration       | Python 3.x                                 |
+| Processing Engine   | Apache Spark / Databricks SQL              |
+| Storage Format      | Delta Lake (Parquet)                       |
+| Catalog             | Unity Catalog                              |
+| Control Plane       | PostgreSQL                                 |
+| Observability       | Structured JSON logging + Postgres metrics |
+| Workflow Scheduler  | Apache Airflow                             |
+| Data Transformation | dbt                                        |
+| Dashboard           | Plotly Dash                                |
+| Testing             | pytest                                     |
+| Containerization    | Docker / docker-compose                    |
 
 ---
 
@@ -94,6 +94,8 @@ External APIs (HuggingFace)
 ```
 .
 ├── bronze/                         # Bronze layer ingestion module
+│
+├── Ingestion/
 │   ├── bronze_orchestrator.py      # Main orchestration entry point
 │   ├── databricks_client.py        # Databricks SQL API client
 │   ├── data_downloader.py          # Raw file downloader (staging)
@@ -113,22 +115,6 @@ External APIs (HuggingFace)
 ├── bronze_metadata/
 │   └── bronze_ingestion_contract.json   # Source-of-truth ingestion contract
 │
-├── airflow/                        # Airflow DAGs and config
-│   ├── dags/
-│   ├── config/
-│   └── plugins/
-│
-├── databricks/                     # Databricks configuration
-│   ├── databricks.cfg              # Workspace URL, token, warehouse ID
-│   ├── dbfs_uploader.py
-│   └── __init__.py
-│
-├── dbt_project/                    # dbt Silver/Gold transformations
-│   ├── dbt_project.yml
-│   ├── models/
-│   │   ├── staging/
-│   │   └── marts/
-│   └── profiles.yml.example
 │
 ├── extraction/                     # API resolution and runner
 │   ├── api_config.json
@@ -137,31 +123,7 @@ External APIs (HuggingFace)
 │   ├── validator.py
 │   └── scripts/
 │       └── run_ingests.sh
-│
-├── dashboard/                      # Plotly Dash observability dashboard
-│   ├── app.py
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── runners/
-│   └── run_bronze.py               # CLI entry point for bronze pipeline
-│
-├── tests/                          # pytest test suite
-│   ├── test_bronze_orchestrator.py
-│   ├── test_data_downloader.py
-│   ├── test_partition_strategy.py
-│   ├── test_sql_generator.py
-│   ├── db_test.py
-│   └── __init__.py
-│
-├── docs/
-│   ├── architecture.md
-│   └── runbook.md
-│
-├── docker-compose.yaml             # Postgres + Airflow + Dashboard
-├── pytest.ini
-├── requirements.txt
-└── .env
+
 ```
 
 ---
@@ -173,6 +135,7 @@ External APIs (HuggingFace)
 The Bronze layer ingests **raw, unmodified data** from external sources into schema-enforced Delta Lake tables. It is the first trusted internal representation of the data.
 
 **Key Responsibilities:**
+
 - Download raw Parquet files from HuggingFace dataset endpoints to a staging area
 - Determine the optimal Delta Lake partition strategy per dataset using heuristics
 - Map contract-defined types to Databricks SQL types (strict — prevents type drift)
@@ -193,16 +156,16 @@ A lightweight, Postgres-backed observability layer lives inside `bronze/observer
 
 ## Datasets
 
-All six datasets are defined in `bronze_metadata/bronze_ingestion_contract.json`.
+All six datasets are defined in `bronze/bronze_metadata/bronze_ingestion_contract.json`.
 
-| Dataset | Rows | Columns | Description |
-|---|---|---|---|
-| `billing_payments` | 200,000 | 10 | Customer billing and payment records per month |
-| `commercial_industries_consumption` | 220,000 | 11 | Commercial/industrial site power consumption |
-| `customers_complaint` | 100,000 | 9 | Customer complaint tickets and SLA outcomes |
-| `grid_load` | 200,000 | 10 | Substation grid load and weather readings |
-| `power_flow` | 200,000 | 10 | Power flow between substations (line-level) |
-| `retail_tariffs` | 90,000 | 6 | Retail electricity tariff rates by band and hour |
+| Dataset                             | Rows    | Columns | Description                                      |
+| ----------------------------------- | ------- | ------- | ------------------------------------------------ |
+| `billing_payments`                  | 200,000 | 10      | Customer billing and payment records per month   |
+| `commercial_industries_consumption` | 220,000 | 11      | Commercial/industrial site power consumption     |
+| `customers_complaint`               | 100,000 | 9       | Customer complaint tickets and SLA outcomes      |
+| `grid_load`                         | 200,000 | 10      | Substation grid load and weather readings        |
+| `power_flow`                        | 200,000 | 10      | Power flow between substations (line-level)      |
+| `retail_tariffs`                    | 90,000  | 6       | Retail electricity tariff rates by band and hour |
 
 All datasets are sourced from `electricsheepafrica` on HuggingFace and ingested as Parquet files.
 
@@ -212,7 +175,7 @@ All datasets are sourced from `electricsheepafrica` on HuggingFace and ingested 
 
 ### Ingestion Contract
 
-**File:** `bronze_metadata/bronze_ingestion_contract.json`
+**File:** `bronze/bronze_metadata/bronze_ingestion_contract.json`
 
 The contract is the single source of truth for the entire Bronze layer. It defines for each dataset:
 
@@ -234,14 +197,14 @@ The `PartitionHeuristics` class automatically determines the optimal Delta Lake 
 
 **Decision Rules:**
 
-| Condition | Strategy |
-|---|---|
-| `rows < 100,000` | `NONE` — no partitioning |
+| Condition                                  | Strategy                   |
+| ------------------------------------------ | -------------------------- |
+| `rows < 100,000`                           | `NONE` — no partitioning   |
 | `rows >= 500,000` + time + category column | `HYBRID` — time + category |
-| `rows >= 500,000` + time column only | `TIME_BASED` |
-| `rows >= 500,000` + category column only | `CATEGORY_BASED` |
-| Medium datasets with time column | `TIME_BASED` |
-| No suitable columns found | `NONE` |
+| `rows >= 500,000` + time column only       | `TIME_BASED`               |
+| `rows >= 500,000` + category column only   | `CATEGORY_BASED`           |
+| Medium datasets with time column           | `TIME_BASED`               |
+| No suitable columns found                  | `NONE`                     |
 
 **Column Detection:**
 
@@ -264,16 +227,16 @@ The `SchemaMapper` class converts contract-defined types to Databricks SQL types
 **Type Map:**
 
 | Contract Type | Databricks SQL Type |
-|---|---|
-| `string` | `STRING` |
-| `double` | `DOUBLE` |
-| `bool` | `BOOLEAN` |
-| `int64` | `BIGINT` |
-| `int32` | `INT` |
-| `float` | `FLOAT` |
-| `timestamp` | `TIMESTAMP` |
-| `date` | `DATE` |
-| `binary` | `BINARY` |
+| ------------- | ------------------- |
+| `string`      | `STRING`            |
+| `double`      | `DOUBLE`            |
+| `bool`        | `BOOLEAN`           |
+| `int64`       | `BIGINT`            |
+| `int32`       | `INT`               |
+| `float`       | `FLOAT`             |
+| `timestamp`   | `TIMESTAMP`         |
+| `date`        | `DATE`              |
+| `binary`      | `BINARY`            |
 
 The mapper also generates Spark schema strings for enforced `read_files()` calls in `MERGE` SQL, preventing corrupt Parquet files from crashing ingestion.
 
@@ -288,18 +251,21 @@ The `BronzeSQLGenerator` class produces schema-safe SQL from three templates, fi
 **Templates:**
 
 **1. `CREATE TABLE`** — creates a Delta Lake table with:
+
 - Schema-enforced columns from the contract
 - Three Bronze metadata columns: `_bronze_ingestion_timestamp`, `_bronze_source_file`, `_bronze_row_hash`
 - `PARTITIONED BY` clause (from `PartitionHeuristics`)
 - Delta table properties: Change Data Feed, auto-optimise, schema enforcement, source lineage tags
 
 **2. `COPY INTO`** — used for small/medium datasets:
+
 - Incremental, idempotent file loading (Databricks tracks loaded files)
 - `mergeSchema = false` to enforce schema and prevent drift
 - `badRecordsPath` for quarantining corrupt records
 - SHA-256 row hash computed inline
 
 **3. `MERGE UPSERT`** — used for large datasets or append-only tables:
+
 - Reads via `read_files()` with enforced Spark schema
 - Deduplicates on `_bronze_row_hash`
 - `WHEN NOT MATCHED THEN INSERT *` — append-only pattern
@@ -315,6 +281,7 @@ The `BronzeSQLGenerator` class produces schema-safe SQL from three templates, fi
 The `DatabricksSQLClient` class executes SQL against a Databricks SQL Warehouse via the REST API (`/api/2.0/sql/statements`).
 
 **Execution Flow:**
+
 1. Submit statement with `wait_timeout: 0s` (returns immediately with a `statement_id`)
 2. Poll `/sql/statements/{statement_id}` with exponential backoff (1s → 10s max)
 3. Return `SQLExecutionResult` on `SUCCEEDED`, `FAILED`, `CANCELED`, or `CLOSED`
@@ -340,6 +307,7 @@ The `SQLExecutionLogger` class appends structured JSON execution records to `bro
 The `DataDownloader` class downloads raw Parquet files from HuggingFace endpoints to a local staging area before Databricks ingestion.
 
 **Features:**
+
 - Streaming download in configurable chunks (default 8 KB) for large file support
 - Exponential backoff retry logic (up to 3 attempts by default)
 - Skip-if-exists caching (avoids re-downloading on re-runs)
@@ -355,6 +323,7 @@ The `DataDownloader` class downloads raw Parquet files from HuggingFace endpoint
 The `BronzeLayerOrchestrator` is the main entry point. It wires all components together and exposes three pipeline steps:
 
 **Step 1 — `create_bronze_tables()`**
+
 - Loads datasets from the contract
 - Runs `PartitionHeuristics.determine_strategy()` per dataset
 - Generates `CREATE TABLE` SQL via `BronzeSQLGenerator`
@@ -362,17 +331,20 @@ The `BronzeLayerOrchestrator` is the main entry point. It wires all components t
 - Logs via `SQLExecutionLogger`
 
 **Step 2 — `ingest_data()`**
+
 - Optionally downloads raw files via `DataDownloader`
 - Generates `COPY INTO` or `MERGE` SQL based on dataset size
 - Executes ingestion SQL
 - Logs result
 
-**Step 3 — `optimize_tables()`** *(optional)*
+**Step 3 — `optimize_tables()`** _(optional)_
+
 - Generates and executes `OPTIMIZE` + `VACUUM` SQL per table
 
 **`run_full_pipeline()`** — runs all three steps in sequence with a single call.
 
 All steps support:
+
 - `datasets` filter — run a subset by name
 - `dry_run=True` — generates SQL and saves to disk without executing
 - `download=True/False` — control whether raw files are fetched
@@ -431,13 +403,13 @@ On each ingestion completion, counters are incremented via `INSERT ... ON CONFLI
 
 **Tracked Metrics:**
 
-| Metric | Purpose |
-|---|---|
-| `ingestion_success_total` | Measure health ratio |
-| `ingestion_failures_total` | Detect instability trends |
-| `ingestion_rows_total` | Detect data volume anomalies |
+| Metric                       | Purpose                        |
+| ---------------------------- | ------------------------------ |
+| `ingestion_success_total`    | Measure health ratio           |
+| `ingestion_failures_total`   | Detect instability trends      |
+| `ingestion_rows_total`       | Detect data volume anomalies   |
 | `ingestion_duration_seconds` | Detect performance degradation |
-| `schema_evolution_count` | Track structural drift |
+| `schema_evolution_count`     | Track structural drift         |
 
 ### Logging Strategy
 
@@ -451,11 +423,11 @@ All log entries are structured JSON with mandatory fields:
 
 Three event types are logged:
 
-| Event | Trigger | Key Fields |
-|---|---|---|
-| `bronze_sql_generated` | After SQL template is filled | `partition_strategy` |
-| `bronze_sql_executed` | After Databricks API returns | `statement_id`, `status`, `row_count`, `duration_ms` |
-| `bronze_sql_failed` | On any ingestion failure | `error_message` |
+| Event                  | Trigger                      | Key Fields                                           |
+| ---------------------- | ---------------------------- | ---------------------------------------------------- |
+| `bronze_sql_generated` | After SQL template is filled | `partition_strategy`                                 |
+| `bronze_sql_executed`  | After Databricks API returns | `statement_id`, `status`, `row_count`, `duration_ms` |
+| `bronze_sql_failed`    | On any ingestion failure     | `error_message`                                      |
 
 ### Trace Correlation
 
@@ -491,13 +463,13 @@ pytest tests/
 
 **Test modules:**
 
-| File | Coverage |
-|---|---|
-| `test_partition_strategy.py` | Partition heuristic rules, column detection, strategy selection |
-| `test_sql_generator.py` | SQL template rendering, column DDL, COPY INTO vs MERGE selection |
-| `test_data_downloader.py` | Download retry logic, caching, validation |
-| `test_bronze_orchestrator.py` | Full pipeline orchestration, dataset filtering, dry-run mode |
-| `db_test.py` | Postgres connectivity and schema validation |
+| File                          | Coverage                                                         |
+| ----------------------------- | ---------------------------------------------------------------- |
+| `test_partition_strategy.py`  | Partition heuristic rules, column detection, strategy selection  |
+| `test_sql_generator.py`       | SQL template rendering, column DDL, COPY INTO vs MERGE selection |
+| `test_data_downloader.py`     | Download retry logic, caching, validation                        |
+| `test_bronze_orchestrator.py` | Full pipeline orchestration, dataset filtering, dry-run mode     |
+| `db_test.py`                  | Postgres connectivity and schema validation                      |
 
 **Observability test strategy** (defined in `docs/`):
 
@@ -562,10 +534,10 @@ docker-compose up -d     # Starts Postgres + Airflow + Dashboard
 ### Full Pipeline (All Datasets)
 
 ```python
-from bronze.bronze_orchestrator import BronzeLayerOrchestrator
+from bronze.ingestion.bronze_orchestrator import BronzeLayerOrchestrator
 
 orchestrator = BronzeLayerOrchestrator(
-    contract_path='bronze_metadata/bronze_ingestion_contract.json',
+    contract_path='bronze/bronze_metadata/bronze_ingestion_contract.json',
     config_path='databricks/databricks.cfg',
     catalog='main',
     schema='bronze'
@@ -619,12 +591,14 @@ python runners/run_bronze.py
 ## Evolution Roadmap
 
 **Phase 2**
+
 - Prometheus metrics export
 - Grafana dashboards
 - OpenTelemetry tracing
 - Data quality validation checks on Bronze output
 
 **Phase 3**
+
 - SLA monitoring per dataset
 - Automated anomaly detection on row count trends
 - Cross-layer lineage observability (Bronze → Silver → Gold)

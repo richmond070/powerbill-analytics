@@ -54,7 +54,7 @@ By the end of this document you should understand:
 
 ```
 .
-├── bronze/                          # Bronze layer — core ingestion module
+├── bronze/ingestion                       # Bronze layer — core ingestion module
 │   ├── bronze_orchestrator.py       # Main pipeline orchestrator
 │   ├── databricks_client.py         # Databricks SQL API client
 │   ├── data_downloader.py           # Staging file downloader
@@ -71,17 +71,16 @@ By the end of this document you should understand:
 │       ├── observability_schema.py  # PostgreSQL DDL bootstrap
 │       └── __init__.py
 │
-├── bronze_metadata/
-│   └── bronze_ingestion_contract.json  # The hand-off contract between layers
-│
-├── extraction/                      # Extraction layer — API resolution and validation
-│   ├── api_config.json              # Dataset endpoint configuration
-│   ├── resolver.py                  # HuggingFace API resolver
-│   ├── runner.py                    # Extraction entry point
-│   ├── validator.py                 # Remote Parquet file validator
-│   ├── __init__.py
-│   └── scripts/
-│       └── run_ingests.sh
+│    └── bronze_metadata/
+│       ├── bronze_ingestion_contract.json  # The hand-off contract between layers
+│    └──extraction/                      # Extraction layer — API resolution and validation
+│       ├── api_config.json              # Dataset endpoint configuration
+│       ├── resolver.py                  # HuggingFace API resolver
+│       ├── runner.py                    # Extraction entry point
+│       ├── validator.py                 # Remote Parquet file validator
+│       ├── __init__.py
+│       └── scripts/
+│           └── run_ingests.sh
 │
 ├── airflow/                         # Airflow DAGs and scheduler config
 │   ├── dags/
@@ -259,7 +258,7 @@ The only place external URLs are stored. Adding a new dataset means adding one e
 
 ### 5.4 The Ingestion Contract — The Hand-off
 
-The extraction layer's only output is `bronze_metadata/bronze_ingestion_contract.json`. This is the **formal contract** between the Extraction and Bronze layers.
+The extraction layer's only output is `bronze/bronze_metadata/bronze_ingestion_contract.json`. This is the **formal contract** between the Extraction and Bronze layers.
 
 ```json
 {
@@ -681,7 +680,7 @@ If the block is absent, conservative defaults apply. `ObservabilityRuleEvaluator
 
 ## 7. How Extraction Connects to Bronze
 
-The two layers are deliberately decoupled. They share exactly one artefact: `bronze_metadata/bronze_ingestion_contract.json`.
+The two layers are deliberately decoupled. They share exactly one artefact: `bronze/bronze_metadata/bronze_ingestion_contract.json`.
 
 ```
 Extraction Layer                           Bronze Layer
@@ -748,7 +747,7 @@ This is an MVP. The pipeline runs six datasets on a daily schedule. Introducing 
 
 ## 9. Datasets
 
-All six datasets are sourced from the `electricsheepafrica` organisation on HuggingFace and defined in `bronze_metadata/bronze_ingestion_contract.json`.
+All six datasets are sourced from the `electricsheepafrica` organisation on HuggingFace and defined in `bronze/bronze_metadata/bronze_ingestion_contract.json`.
 
 | Dataset                             | Rows    | Columns | Partition Strategy           | Ingestion Method |
 | ----------------------------------- | ------- | ------- | ---------------------------- | ---------------- |
@@ -852,17 +851,17 @@ Queries the HuggingFace API and produces the ingestion contract. Only needs to b
 python -m extraction.runner
 ```
 
-Output: `bronze_metadata/bronze_ingestion_contract.json`
+Output: `bronze/bronze_metadata/bronze_ingestion_contract.json`
 
 ### Step 2 — Run the Bronze Layer
 
 **Full pipeline, all datasets:**
 
 ```python
-from bronze.bronze_orchestrator import BronzeLayerOrchestrator
+from bronze.ingestion.bronze_orchestrator import BronzeLayerOrchestrator
 
 orchestrator = BronzeLayerOrchestrator(
-    contract_path='bronze_metadata/bronze_ingestion_contract.json',
+    contract_path='bronze/bronze_metadata/bronze_ingestion_contract.json',
     config_path='databricks/databricks.cfg',
     catalog='main',
     schema='bronze'

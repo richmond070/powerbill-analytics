@@ -67,7 +67,7 @@ extraction/runner.py does three things per dataset:
        → downloads each parquet file, reads its PyArrow schema, and
          returns num_rows, num_columns, column names/types/nullability.
   3. Writes the fully-populated contract to:
-         bronze_metadata/bronze_ingestion_contract.json
+         bronze/bronze_metadata/bronze_ingestion_contract.json
 
 The contract file in the repo has "size_bytes": 0 for every file.
 Those zeros are placeholders — the extractor fills in real values at

@@ -67,12 +67,12 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 # Now safe to import — bronze/ is resolvable as an absolute package
-from bronze.bronze_orchestrator import BronzeLayerOrchestrator  # noqa: E402
+from bronze.ingestion.bronze_orchestrator import BronzeLayerOrchestrator  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Step 2 — Path constants (all relative to project root)
 # ---------------------------------------------------------------------------
-DEFAULT_CONTRACT_PATH = PROJECT_ROOT / "bronze_metadata" / "bronze_ingestion_contract.json"
+DEFAULT_CONTRACT_PATH = PROJECT_ROOT / "bronze" / "bronze_metadata" / "bronze_ingestion_contract.json"
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "databricks" / "databricks.cfg"
 
 
@@ -82,7 +82,7 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "databricks" / "databricks.cfg"
 def resolve_contract_path() -> str:
     """
     Resolve the bronze ingestion contract path.
-    Checks the standard location: bronze_metadata/bronze_ingestion_contract.json
+    Checks the standard location: bronze/bronze_metadata/bronze_ingestion_contract.json
 
     Returns:
         Absolute path string to the contract file.

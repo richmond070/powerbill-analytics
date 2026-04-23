@@ -56,7 +56,7 @@ for p in [PROJECT_ROOT, BRONZE_DIR]:
 # This replaces the previously used FakeSchemaMapper stub, giving us real
 # type-mapping behaviour (ValueError on unknown types, NOT NULL enforcement,
 # correct Spark type casing, etc.) in all SQL generation tests.
-from bronze.schema_mapper import SchemaMapper
+from bronze.ingestion.schema_mapper import SchemaMapper
 
 
 def _bootstrap_sql_generator_module():
@@ -64,7 +64,7 @@ def _bootstrap_sql_generator_module():
     Load sql_generator.py as 'bronze.sql_generator' with mocked dependencies.
     Called once at module level; returns the loaded module.
     """
-    import bronze.partition_strategy as real_ps
+    import bronze.ingestion.partition_strategy as real_ps
 
     # Create the fake bronze package
     bronze_pkg = types.ModuleType("bronze")
@@ -74,7 +74,7 @@ def _bootstrap_sql_generator_module():
     # Now that schema_mapper.py is available, we use it directly so the tests
     # exercise real type mapping, ValueError on unknown types, and correct
     # DDL/Spark schema formatting rather than a stub approximation.
-    from bronze.schema_mapper import SchemaMapper as RealSchemaMapper
+    from bronze.ingestion.schema_mapper import SchemaMapper as RealSchemaMapper
     schema_mapper_mod = types.ModuleType("bronze.schema_mapper")
     schema_mapper_mod.SchemaMapper = RealSchemaMapper
     sys.modules["bronze.schema_mapper"] = schema_mapper_mod
@@ -104,7 +104,7 @@ _sql_gen = _bootstrap_sql_generator_module()
 BronzeSQLGenerator = _sql_gen.BronzeSQLGenerator
 BronzeSQLTemplate = _sql_gen.BronzeSQLTemplate
 
-import bronze.partition_strategy as ps
+import bronze.ingestion.partition_strategy as ps
 PartitionConfig = ps.PartitionConfig
 PartitionStrategy = ps.PartitionStrategy
 PartitionHeuristics = ps.PartitionHeuristics
@@ -170,7 +170,7 @@ def has_unfilled_placeholders(sql: str) -> list:
 
 import json as _json
 
-BRONZE_METADATA_DIR = os.path.join(PROJECT_ROOT, "bronze_metadata")
+BRONZE_METADATA_DIR = os.path.join(PROJECT_ROOT, "bronze", "bronze_metadata")
 _CONTRACT_PATH = os.path.join(BRONZE_METADATA_DIR, "bronze_ingestion_contract.json")
 
 if not os.path.exists(_CONTRACT_PATH):

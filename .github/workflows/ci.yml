@@ -139,7 +139,7 @@ jobs:
   # JOB 3 — Contract Validation
   # Runs on: every push / every PR
   # Needs: code-quality passes
-  # Validates bronze_metadata/bronze_ingestion_contract.json is well-formed
+  # Validates bronze/bronze_metadata/bronze_ingestion_contract.json is well-formed
   # ===========================================================================
   contract-validation:
     name: Contract Validation
@@ -165,7 +165,7 @@ jobs:
           python - << 'EOF'
           import json, sys
 
-          CONTRACT_PATH = "bronze_metadata/bronze_ingestion_contract.json"
+          CONTRACT_PATH = "bronze/bronze_metadata/bronze_ingestion_contract.json"
 
           with open(CONTRACT_PATH) as f:
               contract = json.load(f)

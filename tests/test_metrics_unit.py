@@ -25,8 +25,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from bronze.observer.metrics_aggregator import MetricsAggregator
-from bronze.observer.bronze_logger import BronzeLogger, configure_logging
+from bronze.ingestion.observer.metrics_aggregator import MetricsAggregator
+from bronze.ingestion.observer.bronze_logger import BronzeLogger, configure_logging
 
 
 # ---------------------------------------------------------------------------

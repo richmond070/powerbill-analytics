@@ -1,71 +1,3 @@
-"""
-Bronze Layer Orchestrator  (cloud-native + concurrent + resilient)
-==================================================================
-Python is a pure orchestrator — it never touches data bytes.
-The Databricks SQL warehouse reads parquet files directly from
-HuggingFace URLs over its own backbone network.
-
-Architecture
-------------
-    HuggingFace URL (resolved via HEAD verify)
-        → Databricks SQL warehouse pulls data directly
-        → Delta table in Unity Catalog
-    Your machine: generates SQL, submits it, tracks outcomes. That is all.
-
-Ingestion routing
------------------
-COPY INTO is preferred over MERGE for these datasets because:
-  - Each HuggingFace file is a complete bounded snapshot, not a stream.
-  - COPY INTO tracks loaded files internally (no row comparison needed).
-  - force=false makes it idempotent: re-submitting the same file URL is a no-op.
-  - MERGE is slower — it computes a SHA-256 hash for every row to detect
-    duplicates, which is wasted work when the source file never changes.
-
-MERGE is used only when partition_config.use_append_only=True, which the
-partition heuristics set for datasets that genuinely need deduplication
-(e.g. large datasets partitioned by time where partial overlaps can occur).
-
-Checkpointing
--------------
-bronze_ingestion_audit acts as the checkpoint store. Before processing
-any dataset, the orchestrator queries Postgres to find which datasets
-already have a SUCCESS record for the current run date. Those are skipped.
-
-Three rerun modes (controlled by rerun_mode on ingest_data):
-
-  "skip_completed"  (default)
-      Skip datasets that succeeded today. Process everything else.
-      Use this for normal daily reruns after a partial failure.
-
-  "failed_only"
-      Process only datasets whose most recent run today ended in FAILED
-      or RUNNING (stuck/crashed). Datasets that succeeded are untouched.
-      Use this after fixing the root cause of a failure.
-
-  "full"
-      Process all datasets regardless of prior run status.
-      COPY INTO with force=false remains idempotent so this will not
-      double-insert rows. Use for a forced clean re-ingestion.
-
-Concurrency model
------------------
-Each dataset runs in its own thread via ThreadPoolExecutor.
-Every thread:
-  - Gets its own DatabricksSQLClient instance (no shared HTTP session).
-  - Borrows its own Postgres connection from the pool per DB call.
-  - Carries an independent trace_id.
-  - Returns a _DatasetResult to the main thread.
-
-Thread-safety
--------------
-- AuditWriter / MetricsAggregator: pg_connection() borrows + returns
-  a connection per call. No connection stored on the instance.
-- BronzeLogger: stdlib logging is thread-safe internally.
-- SQLExecutionLogger: guarded by threading.Lock (read-modify-write on JSON).
-- Failure counter: guarded by threading.Lock.
-- Checkpoint query: runs once in the main thread before the pool starts.
-"""
-
 import json
 import os
 import time
@@ -78,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .partition_strategy import PartitionHeuristics
 from .sql_generator import BronzeSQLGenerator
-from .databricks_client import DatabricksSQLClient, SQLExecutionLogger
+from ...databricks.databricks_client import DatabricksSQLClient, SQLExecutionLogger
 from .data_downloader import DataDownloader
 
 from .observer import (

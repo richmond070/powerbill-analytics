@@ -1,0 +1,39 @@
+name: energy_pipeline
+version: "1.0.0"
+config-version: 2
+
+# Must match the top-level key in profiles.yml
+profile: energy_pipeline
+
+# Paths relative to this file (dbt_project/)
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+# ── Model configuration
+models:
+  energy_pipeline:
+    # staging/ — thin wrappers over Bronze Delta tables
+    # Materialised as views: cheap to run, always fresh
+    staging:
+      +materialized: view
+      +schema: silver # main.silver_dev.stg_* (dev) / main.silver.stg_* (prod)
+
+    # marts/ — business-facing aggregated tables
+    # Materialised as tables: pre-computed for dashboard performance
+    marts:
+      +materialized: table
+      +schema: silver # main.silver_dev.mart_* (dev) / main.silver.mart_* (prod)
+
+# ── Variable defaults
+# Override at run time: dbt run --vars '{"bronze_schema": "bronze_dev"}'
+vars:
+  bronze_catalog: main
+  bronze_schema: bronze # source schema where Bronze Delta tables live
+  silver_catalog: main

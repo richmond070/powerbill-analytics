@@ -5,3 +5,4 @@ databricks/databricks.cfg
 databricks/dbfs_uploder.py
 airflow/logs/
 bronze_ingestion_log.json
+silver/silver_run_state.json

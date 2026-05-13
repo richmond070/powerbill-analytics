@@ -1,0 +1,39 @@
+{
+    "pipeline_name": "silver_layer_pipeline",
+    "target_catalog": "main",
+    "target_schema": "sliver",
+    "datasets": [
+        {
+            "name": "billing_payments",
+            "source_table": "main.bronze.bronze_billing_payments",
+            "target_table": "main.silver.billing_payments",
+            "transformer_sql": "transformers/billing_payments_silver.sql",
+            "depends_on": [],
+            "partition_by": ["billing_month"]
+        },
+        {
+            "name": "tariff_reference",
+            "source_table": "main.bronze.bronze_retail_tariffs",
+            "target_table": "main.silver.tariff_reference",
+            "transformer_sql": "transformers/tariff_reference_silver.sql",
+            "depends_on": [],
+            "partition_by": ["as_of_date"]
+        },
+        {
+            "name": "customer_enriched",
+            "source_table": null,
+            "target_table": "main.silver.customer_enriched",
+            "transformer_sql": "transformers/customers_enriched_silver.sql",
+            "depends_on": ["billing_payments", "tariff_reference"],
+            "partition_by": []
+        },
+        {
+            "name": "grid_stress_complaints",
+            "source_table": null,
+            "target_table": "main.silver.grid_stress_complaints",
+            "transformer_sql": "transformers/grid_stress_complaints_silver.sql",
+            "depends_on": ["customer_enriched"],
+            "partition_by": ["complaint_date"]
+        }
+    ] 
+}

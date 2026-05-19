@@ -1,0 +1,188 @@
+version: 2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sources — tell dbt where the upstream tables live
+# ─────────────────────────────────────────────────────────────────────────────
+
+sources:
+  - name: bronze
+    catalog: main
+    schema: bronze
+    description: "Raw ingested Delta tables — Bronze layer. Written by the Python orchestrator via Databricks SQL API."
+    tables:
+      - name: bronze_customers_complaint
+        description: "Raw customer complaint tickets. One row per ticket."
+        columns:
+          - name: ticket_id
+            tests: [not_null, unique]
+          - name: customer_id
+            tests: [not_null]
+          - name: disco
+            tests: [not_null]
+          - name: category
+            tests: [not_null]
+          - name: sla_met
+            tests: [not_null]
+
+  - name: silver
+    catalog: main
+    schema: silver
+    description: "Cleaned and enriched Delta tables — Silver layer. Written by silver_orchestrator.py."
+    tables:
+      - name: billing_payments
+        description: "Deduplicated billing records with derived payment metrics."
+        columns:
+          - name: customer_id
+            tests: [not_null]
+          - name: billing_month
+            tests: [not_null]
+      - name: tariff_reference
+        description: "Deduplicated retail tariff reference table."
+        columns:
+          - name: as_of_date
+            tests: [not_null]
+          - name: disco
+            tests: [not_null]
+      - name: grid_stress_complaints
+        description: "One row per complaint ticket enriched with grid load and power flow conditions at the time of the complaint."
+        columns:
+          - name: ticket_id
+            tests: [not_null, unique]
+          - name: complaint_date
+            tests: [not_null]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Staging models
+# ─────────────────────────────────────────────────────────────────────────────
+
+models:
+  - name: stg_billing_payments
+    description: "Staging layer over silver.billing_payments. Filters null customer_id and billing_month. No additional transformation."
+    columns:
+      - name: customer_id
+        tests: [not_null]
+      - name: billing_month
+        tests: [not_null]
+      - name: amount_billed_ngn
+        tests: [not_null]
+      - name: collection_rate
+        description: "amount_paid / amount_billed. 0 when billed = 0. Derived in Silver."
+        tests: [not_null]
+
+  - name: stg_customers_complaint
+    description: "Staging layer over bronze.bronze_customers_complaint. Applies TIMESTAMP casts and derives resolution_hours."
+    columns:
+      - name: ticket_id
+        tests: [not_null, unique]
+      - name: customer_id
+        tests: [not_null]
+      - name: sla_met
+        tests: [not_null]
+      - name: resolution_hours
+        description: "Hours between created_at and resolved_at. Null when resolved_time is missing."
+
+  - name: stg_retail_tariffs
+    description: "Staging layer over silver.tariff_reference. Filters null as_of_date and disco."
+    columns:
+      - name: as_of_date
+        tests: [not_null]
+      - name: price_ngn_kwh
+        tests: [not_null]
+
+  - name: stg_grid_stress_complaints
+    description: "Staging layer over silver.grid_stress_complaints. One row per ticket enriched with grid health metrics and stress flags at the time of complaint."
+    columns:
+      - name: ticket_id
+        tests: [not_null, unique]
+      - name: complaint_date
+        tests: [not_null]
+      - name: any_stress_at_complaint_time
+        description: "True when any of grid_overloaded, grid_unstable, or line_stressed was active at the complaint hour."
+        tests: [not_null]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Mart models
+# ─────────────────────────────────────────────────────────────────────────────
+
+  - name: mart_revenue_trends
+    description: >
+      Monthly revenue summary by DISCO and tariff band.
+      Answers: How is revenue trending month-over-month? Which bands are growing?
+      Grain: one row per (billing_month, disco, tariff_band).
+    columns:
+      - name: billing_month
+        tests: [not_null]
+      - name: disco
+        tests: [not_null]
+      - name: tariff_band
+        tests: [not_null]
+      - name: total_revenue_billed
+        tests: [not_null]
+      - name: total_revenue_collected
+        tests: [not_null]
+
+  - name: mart_payment_behavior
+    description: >
+      Lifetime payment profile per customer.
+      Answers: Who pays on time? Does complaint history correlate with late payment?
+      Grain: one row per customer_id.
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]
+      - name: payment_segment
+        description: "reliable / occasional_late / chronic_late based on on_time_rate."
+        tests: [not_null]
+      - name: collection_tier
+        description: "high / medium / low based on avg_collection_rate."
+        tests: [not_null]
+
+  - name: mart_outstanding_balances
+    description: >
+      Rolling monthly balance per customer. Includes cumulative arrears, payment gap,
+      and an arrears_growing_flag for customers whose arrears increased for 2+ consecutive months.
+      Grain: one row per (customer_id, billing_month).
+    columns:
+      - name: customer_id
+        tests: [not_null]
+      - name: billing_month
+        tests: [not_null]
+      - name: cumulative_arrears
+        tests: [not_null]
+      - name: arrears_growing_flag
+        description: "True when arrears increased month-over-month for two or more consecutive months."
+
+  - name: mart_customer_lifetime_value
+    description: >
+      Lifetime value score (0-100) per customer combining revenue, payment reliability,
+      and complaint friction. Includes grid stress exposure metrics so analysts can see
+      whether a customer's complaint history is driven by grid problems or billing issues.
+      Grain: one row per customer_id.
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]
+      - name: clv_score
+        description: "Composite 0-100 CLV index: 50% revenue + 30% reliability + 20% low-friction."
+        tests: [not_null]
+      - name: clv_tier
+        description: "platinum (>=75) / gold (>=50) / silver (>=25) / bronze (<25)."
+        tests: [not_null]
+      - name: pct_complaints_during_stress
+        description: "Share of this customer's complaints that coincided with a grid stress event. High value suggests their issues are grid-driven, not billing-driven."
+
+  - name: mart_grid_reliability
+    description: >
+      Monthly grid reliability summary per DISCO.
+      Answers: What share of complaints happen during grid stress? Which stress type
+      (overload, frequency instability, line stress) drives the most complaints?
+      Is the grid improving over time?
+      Grain: one row per (disco, complaint_month).
+    columns:
+      - name: disco
+        tests: [not_null]
+      - name: complaint_month
+        tests: [not_null]
+      - name: stress_complaint_share_pct
+        description: "Percentage of complaints in the month that coincided with a grid stress event."
+        tests: [not_null]
+      - name: stress_share_mom_change_ppt
+        description: "Month-over-month change in stress_complaint_share_pct (percentage points). Negative = grid improving."

@@ -22,7 +22,7 @@ energy_pipeline:
     dev:
       type: databricks
       catalog: main
-      schema: silver_dev
+      schema: dbt_dev
       host: "{{ env_var('DATABRICKS_HOST') }}"
       http_path: "{{ env_var('DATABRICKS_HTTP_PATH') }}"
       token: "{{ env_var('DATABRICKS_TOKEN') }}"
@@ -33,7 +33,7 @@ energy_pipeline:
     prod:
       type: databricks
       catalog: main
-      schema: silver
+      schema: dbt_prod
       host: "{{ env_var('DATABRICKS_HOST') }}"
       http_path: "{{ env_var('DATABRICKS_HTTP_PATH') }}"
       token: "{{ env_var('DATABRICKS_TOKEN') }}"

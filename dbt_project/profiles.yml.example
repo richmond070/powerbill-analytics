@@ -1,0 +1,33 @@
+# profiles.yml.example
+# Copy this file to profiles.yml and fill in real values.
+# profiles.yml is in .gitignore — never commit it.
+#
+# Set the three env vars before running dbt:
+#   export DATABRICKS_HOST=https://xxx.azuredatabricks.net
+#   export DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/abc123
+#   export DATABRICKS_TOKEN=dapi...
+#
+# Or use runners/export_dbt_env.py to read databricks/databricks.cfg and
+# export all three automatically:
+#   python runners/export_dbt_env.py --run "dbt run --profiles-dir dbt_project --project-dir dbt_project"
+
+energy_pipeline:
+  target: dev
+  outputs:
+    dev:
+      type: databricks
+      catalog: main
+      schema: silver_dev
+      host: "{{ env_var('DATABRICKS_HOST') }}"
+      http_path: "{{ env_var('DATABRICKS_HTTP_PATH') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      threads: 4
+
+    prod:
+      type: databricks
+      catalog: main
+      schema: silver
+      host: "{{ env_var('DATABRICKS_HOST') }}"
+      http_path: "{{ env_var('DATABRICKS_HTTP_PATH') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      threads: 8

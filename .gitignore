@@ -6,4 +6,8 @@ databricks/dbfs_uploder.py
 airflow/logs/
 bronze_ingestion_log.json
 silver/silver_run_state.json
-dbt/profiles.yml
+dbt_project/profiles.yml
+dbt_project/logs/
+dbt_project/.user.yml
+dbt_project/target/
+dbt_project/dbt_packages

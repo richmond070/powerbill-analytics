@@ -41,7 +41,7 @@ WITH source AS (
         grid_unstable,
         line_stressed,
         any_stress_at_complaint_time
-    FROM { { source('silver', 'grid_stress_complaints') } }
+    FROM {{ source('silver', 'grid_stress_complaints') }}
     WHERE ticket_id IS NOT NULL
         AND complaint_date IS NOT NULL
 )

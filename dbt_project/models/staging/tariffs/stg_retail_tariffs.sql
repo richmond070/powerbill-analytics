@@ -12,7 +12,7 @@ WITH source AS (
         tariff_band,
         hour,
         price_ngn_kwh
-    FROM { { source('silver', 'tariff_reference') } }
+    FROM {{ source('silver', 'tariff_reference') }}
     WHERE as_of_date IS NOT NULL
         AND disco IS NOT NULL
 )

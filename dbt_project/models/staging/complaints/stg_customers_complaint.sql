@@ -27,7 +27,7 @@ WITH source AS (
             CAST(created_time AS TIMESTAMP),
             CAST(resolved_time AS TIMESTAMP)
         ) AS resolution_hours
-    FROM { { source('bronze', 'bronze_customers_complaint') } }
+    FROM {{ source('bronze', 'bronze_customers_complaint') }}
     WHERE ticket_id IS NOT NULL
 )
 SELECT *

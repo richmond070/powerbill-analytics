@@ -10,7 +10,7 @@
 -- Use the latest billing_month per customer_id for a current balance view.
 WITH billing AS (
     SELECT *
-    FROM { { ref('stg_billing_payments') } }
+    FROM {{ ref('stg_billing_payments') }}
 ),
 monthly_balance AS (
     SELECT customer_id,

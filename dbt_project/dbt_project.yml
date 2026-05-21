@@ -20,7 +20,7 @@ models:
   energy_pipeline:
     staging:
       +materialized: view
-      +schema: silver
+      +schema: silver_1
 
       billing:
         +materialized: view

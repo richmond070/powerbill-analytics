@@ -11,7 +11,7 @@
 -- Feed this into a BI dashboard to give DISCOs a monthly grid health scorecard.
 WITH stress AS (
     SELECT *
-    FROM { { ref('stg_grid_stress_complaints') } }
+    FROM {{ ref('stg_grid_stress_complaints') }}
 ),
 monthly_disco AS (
     SELECT disco,

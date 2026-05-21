@@ -6,11 +6,11 @@
 -- Grain: one row per (billing_month, disco, tariff_band)
 WITH billing AS (
     SELECT *
-    FROM { { ref('stg_billing_payments') } }
+    FROM {{ ref('stg_billing_payments') }}
 ),
 tariffs AS (
     SELECT *
-    FROM { { ref('stg_retail_tariffs') } }
+    FROM {{ ref('stg_retail_tariffs') }}
 ),
 -- Get the effective tariff price for each (disco, tariff_band, billing_month).
 -- We match on the most recent tariff as_of_date that is <= the billing_month.

@@ -19,7 +19,7 @@
 -- real business weights once the data is validated.
 WITH billing AS (
     SELECT *
-    FROM { { ref('stg_billing_payments') } }
+    FROM {{ ref('stg_billing_payments') }}
 ),
 complaints AS (
     SELECT customer_id,
@@ -31,7 +31,7 @@ complaints AS (
             END
         ) AS sla_met_count,
         COUNT(DISTINCT category) AS distinct_complaint_categories
-    FROM { { ref('stg_customers_complaint') } }
+    FROM {{ ref('stg_customers_complaint') }}
     GROUP BY customer_id
 ),
 grid_stress_exposure AS (
@@ -63,7 +63,7 @@ grid_stress_exposure AS (
                 ELSE 0
             END
         ) AS any_stress_complaints
-    FROM { { ref('stg_grid_stress_complaints') } }
+    FROM {{ ref('stg_grid_stress_complaints') }}
     GROUP BY customer_id
 ),
 customer_billing_summary AS (

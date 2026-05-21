@@ -20,7 +20,7 @@ WITH source AS (
         payment_gap_ngn,
         -- derived in Silver
         collection_rate -- derived in Silver
-    FROM { { source('silver', 'billing_payments') } }
+    FROM {{ source('silver', 'billing_payments') }}
     WHERE customer_id IS NOT NULL
         AND billing_month IS NOT NULL
 )

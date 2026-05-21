@@ -6,7 +6,7 @@
 -- Grain: one row per customer — lifetime payment profile
 WITH billing AS (
     SELECT *
-    FROM { { ref('stg_billing_payments') } }
+    FROM {{ ref('stg_billing_payments') }}
 ),
 complaints AS (
     SELECT customer_id,
@@ -18,7 +18,7 @@ complaints AS (
             END
         ) AS sla_met_count,
         AVG(resolution_hours) AS avg_resolution_hours
-    FROM { { ref('stg_customers_complaint') } }
+    FROM {{ ref('stg_customers_complaint') }}
     GROUP BY customer_id
 ),
 customer_billing AS (

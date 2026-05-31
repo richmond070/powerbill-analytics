@@ -1,21 +1,3 @@
-"""
-PostgreSQL Connection Pool
-Shared connection pool for the Bronze observability layer.
-Config is read from databricks.cfg [POSTGRES] section or environment variables.
-
-Usage:
-    pool = get_pool()
-    with pool.getconn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(...)
-        conn.commit()
-    pool.putconn(conn)
-
-Or use the context-manager helper:
-    with pg_connection() as conn:
-        ...
-"""
-
 import os
 import configparser
 from contextlib import contextmanager

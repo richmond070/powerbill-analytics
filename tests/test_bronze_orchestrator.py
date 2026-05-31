@@ -71,8 +71,11 @@ from datetime import datetime
 # Step 1 — Resolve project root (cross-platform safe)
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-BRONZE_DIR = os.path.join(PROJECT_ROOT, "bronze") 
-for p in [PROJECT_ROOT, BRONZE_DIR]:
+
+BRONZE_DIR = os.path.join(PROJECT_ROOT, "bronze")
+DATABRICKS_DIR = os.path.join(PROJECT_ROOT, "databricks")
+
+for p in [PROJECT_ROOT, BRONZE_DIR, DATABRICKS_DIR]:
     if p not in sys.path:
         sys.path.insert(0, p)
 
@@ -93,55 +96,67 @@ for p in [PROJECT_ROOT, BRONZE_DIR]:
 # ---------------------------------------------------------------------------
 
 def _bootstrap_modules():
-    """
-    Load all project modules under the 'bronze' package namespace.
-    Returns a dict of loaded module objects keyed by short name.
-    """
+    # Create bronze package
     bronze_pkg = types.ModuleType("bronze")
+    bronze_pkg.__path__ = []
     sys.modules["bronze"] = bronze_pkg
 
+    # Create databricks package
+    databricks_pkg = types.ModuleType("databricks")
+    databricks_pkg.__path__ = []
+    sys.modules["databricks"] = databricks_pkg
+
     loaded = {}
-    for mod_name in [
+
+    # Load databricks_client
+    dbx_path = os.path.join(DATABRICKS_DIR, "databricks_client.py")
+    spec = importlib.util.spec_from_file_location("databricks.databricks_client", dbx_path)
+    dbx_mod = importlib.util.module_from_spec(spec)
+    dbx_mod.__package__ = "databricks"
+    sys.modules["databricks.databricks_client"] = dbx_mod
+    spec.loader.exec_module(dbx_mod)
+    loaded["databricks_client"] = dbx_mod
+
+    # ----- Handle bronze.observer subpackage -----
+    observer_pkg_name = "bronze.observer"
+    observer_dir = os.path.join(BRONZE_DIR, "observer")
+    if os.path.isdir(observer_dir):
+        # Create the subpackage
+        observer_pkg = types.ModuleType(observer_pkg_name)
+        observer_pkg.__path__ = []
+        sys.modules[observer_pkg_name] = observer_pkg
+        
+        # Load __init__.py if present
+        init_file = os.path.join(observer_dir, "__init__.py")
+        if os.path.isfile(init_file):
+            spec = importlib.util.spec_from_file_location(observer_pkg_name, init_file)
+            init_mod = importlib.util.module_from_spec(spec)
+            init_mod.__package__ = observer_pkg_name
+            sys.modules[observer_pkg_name] = init_mod
+            spec.loader.exec_module(init_mod)
+            loaded["observer"] = init_mod
+        else:
+            # No __init__.py, but the package exists (namespace)
+            loaded["observer"] = observer_pkg
+
+
+    # Load bronze modules (including bronze_orchestrator)
+    bronze_modules = [
         "schema_mapper",
         "partition_strategy",
         "sql_generator",
-        "databricks_client",
         "data_downloader",
-    ]:
+        "bronze_orchestrator",
+    ]
+
+    for mod_name in bronze_modules:
         path = os.path.join(BRONZE_DIR, f"{mod_name}.py")
-        spec = importlib.util.spec_from_file_location(
-            f"bronze.{mod_name}", path, submodule_search_locations=[]
-        )
+        spec = importlib.util.spec_from_file_location(f"bronze.{mod_name}", path)
         mod = importlib.util.module_from_spec(spec)
         mod.__package__ = "bronze"
         sys.modules[f"bronze.{mod_name}"] = mod
         spec.loader.exec_module(mod)
         loaded[mod_name] = mod
-
-    # ── Wire the observer package as a mock ───────────────────────────────
-    # bronze_orchestrator.py imports from .observer — we stub it out so
-    # the orchestrator loads cleanly without a real Postgres connection.
-    observer_mod = types.ModuleType("bronze.observer")
-    observer_mod.configure_logging        = MagicMock()
-    observer_mod.ensure_observability_tables = MagicMock()
-    observer_mod.BronzeLogger             = MagicMock()
-    observer_mod.AuditWriter              = MagicMock()
-    observer_mod.MetricsAggregator        = MagicMock()
-    observer_mod.ObservabilityContractParser = MagicMock()
-    observer_mod.ObservabilityRuleEvaluator  = MagicMock()
-    observer_mod.close_pool               = MagicMock()
-    sys.modules["bronze.observer"] = observer_mod
-
-    # Load the orchestrator itself
-    orch_path = os.path.join(BRONZE_DIR, "bronze_orchestrator.py")
-    spec = importlib.util.spec_from_file_location(
-        "bronze.ingestion.bronze_orchestrator", orch_path, submodule_search_locations=[]
-    )
-    orch_mod = importlib.util.module_from_spec(spec)
-    orch_mod.__package__ = "bronze"
-    sys.modules["bronze.ingestion.bronze_orchestrator"] = orch_mod
-    spec.loader.exec_module(orch_mod)
-    loaded["bronze_orchestrator"] = orch_mod
 
     return loaded
 

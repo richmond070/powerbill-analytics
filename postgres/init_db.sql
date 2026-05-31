@@ -1,21 +1,3 @@
--- =============================================================================
--- Postgres Initialization Script
--- Location: postgres/init_db.sql
--- Runs ONCE automatically when the postgres container starts for the first time.
--- Docker mounts this via: ./postgres:/docker-entrypoint-initdb.d/
---
--- This script creates TWO logical databases inside ONE Postgres container:
---   1. airflow_db     → Airflow metadata (DAG runs, task states, logs index)
---   2. bronze_control → Bronze layer control plane (audit + metrics tables)
---
--- Why two databases in one container?
---   Saves ~350MB vs spinning up a second postgres container.
---   They are logically isolated but share one process.
--- =============================================================================
--- -----------------------------------------------------------------------------
--- 1. Create bronze_control database
---    (airflow_db is already created by POSTGRES_DB env var in docker-compose)
--- -----------------------------------------------------------------------------
 CREATE DATABASE bronze_control;
 -- -----------------------------------------------------------------------------
 -- 2. Grant the airflow user full access to bronze_control
@@ -27,7 +9,7 @@ GRANT ALL PRIVILEGES ON DATABASE bronze_control TO airflow;
 -- 3. Connect to bronze_control and create the Bronze observability schema
 --    These tables are defined in the Bronze Observability Guide (Section 4 + 6)
 -- -----------------------------------------------------------------------------
-\ connect bronze_control -- -----------------------------------------------------------------------------
+\connect bronze_control -- -----------------------------------------------------------------------------
 -- 3a. bronze_ingestion_audit
 --     Acts as the "black box recorder" for every ingestion run.
 --     One row inserted at START (status=RUNNING), updated at END.
@@ -67,9 +49,3 @@ CREATE TABLE IF NOT EXISTS bronze_ingestion_metrics (
 );
 -- Index for date-range queries (dashboards, trend detection)
 CREATE INDEX IF NOT EXISTS idx_metrics_metric_date ON bronze_ingestion_metrics (metric_date);
--- -----------------------------------------------------------------------------
--- Done. Summary of what was created:
---   Database : bronze_control
---   Tables   : bronze_ingestion_audit, bronze_ingestion_metrics
---   Indexes  : 4 total (3 on audit, 1 on metrics)
--- -----------------------------------------------------------------------------

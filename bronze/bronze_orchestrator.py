@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .partition_strategy import PartitionHeuristics
 from .sql_generator import BronzeSQLGenerator
-from ...databricks.databricks_client import DatabricksSQLClient, SQLExecutionLogger
+from databricks.databricks_client import (DatabricksSQLClient, SQLExecutionLogger)
 from .data_downloader import DataDownloader
 
 from .observer import (

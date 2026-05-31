@@ -11,7 +11,7 @@ import os
 import sys
 import json
 import pytest
-from bronze.ingestion.partition_strategy import PartitionHeuristics, PartitionStrategy, PartitionConfig
+from bronze.partition_strategy import PartitionHeuristics, PartitionStrategy, PartitionConfig
 
 # ---------------------------------------------------------------------------
 # Contract loader — bronze_ingestion_contract.json as single source of truth

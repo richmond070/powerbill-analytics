@@ -30,6 +30,8 @@ import sys
 import types
 import unittest
 import importlib.util
+import bronze.partition_strategy as real_ps
+from bronze.schema_mapper import SchemaMapper
 
 # ---------------------------------------------------------------------------
 # Step 1 — Resolve project root so partition_strategy.py is importable
@@ -41,30 +43,12 @@ for p in [PROJECT_ROOT, BRONZE_DIR]:
         sys.path.insert(0, p)
 
 
-# ---------------------------------------------------------------------------
-# Step 2 — Bootstrap the 'bronze' package in sys.modules
-#
-# sql_generator.py uses relative imports:
-#   from .schema_mapper import SchemaMapper
-#   from .partition_strategy import PartitionConfig, PartitionHeuristics
-#
-# We create a fake 'bronze' package, inject a controlled FakeSchemaMapper,
-# and wire the real partition_strategy in under the bronze.partition_strategy key.
-# ---------------------------------------------------------------------------
-
-# The real SchemaMapper is imported here and wired into the bronze package.
-# This replaces the previously used FakeSchemaMapper stub, giving us real
-# type-mapping behaviour (ValueError on unknown types, NOT NULL enforcement,
-# correct Spark type casing, etc.) in all SQL generation tests.
-from bronze.ingestion.schema_mapper import SchemaMapper
-
-
 def _bootstrap_sql_generator_module():
     """
     Load sql_generator.py as 'bronze.sql_generator' with mocked dependencies.
     Called once at module level; returns the loaded module.
     """
-    import bronze.ingestion.partition_strategy as real_ps
+    
 
     # Create the fake bronze package
     bronze_pkg = types.ModuleType("bronze")
@@ -74,7 +58,7 @@ def _bootstrap_sql_generator_module():
     # Now that schema_mapper.py is available, we use it directly so the tests
     # exercise real type mapping, ValueError on unknown types, and correct
     # DDL/Spark schema formatting rather than a stub approximation.
-    from bronze.ingestion.schema_mapper import SchemaMapper as RealSchemaMapper
+    from bronze.schema_mapper import SchemaMapper as RealSchemaMapper
     schema_mapper_mod = types.ModuleType("bronze.schema_mapper")
     schema_mapper_mod.SchemaMapper = RealSchemaMapper
     sys.modules["bronze.schema_mapper"] = schema_mapper_mod
@@ -104,7 +88,7 @@ _sql_gen = _bootstrap_sql_generator_module()
 BronzeSQLGenerator = _sql_gen.BronzeSQLGenerator
 BronzeSQLTemplate = _sql_gen.BronzeSQLTemplate
 
-import bronze.ingestion.partition_strategy as ps
+import bronze.partition_strategy as ps
 PartitionConfig = ps.PartitionConfig
 PartitionStrategy = ps.PartitionStrategy
 PartitionHeuristics = ps.PartitionHeuristics

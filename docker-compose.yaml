@@ -2,36 +2,47 @@ version: "3.8"
 
 # =============================================================================
 # SHARED AIRFLOW CONFIGURATION
-# YAML anchor — defined once, merged into every airflow-* service via <<:
+# Applied to init, scheduler, and webserver via YAML anchor.
+# Change a value once here — it propagates to all three services.
 # =============================================================================
 x-airflow-common: &airflow-common
   image: apache/airflow:2.9.0-python3.11
 
   environment:
-    # --- Executor ------------------------------------------------------------
-    # LocalExecutor: tasks run as subprocesses inside the scheduler container.
-    # Eliminates Redis + Celery worker containers entirely.
+    # -------------------------------------------------------------------------
+    # Airflow core
+    # -------------------------------------------------------------------------
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-
-    # --- Metadata DB ---------------------------------------------------------
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
-      postgresql+psycopg2://airflow:airflow@postgres/airflow_db
-
-    # --- Core behaviour ------------------------------------------------------
-    AIRFLOW__CORE__FERNET_KEY: ""
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: UTC
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-    AIRFLOW__CORE__DEFAULT_TIMEZONE: "UTC"
+    AIRFLOW__CORE__FERNET_KEY: "" # set a real key before production
 
-    # --- Webserver -----------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Metadata database
+    # Uses airflow_db created automatically by POSTGRES_DB below.
+    # -------------------------------------------------------------------------
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
+      postgresql+psycopg2://airflow:energydb@postgres/airflow_db
+
+    # -------------------------------------------------------------------------
+    # Webserver
+    # WEB_SERVER_WORKER_COUNT=1 halves RAM vs the default 4 gunicorn workers.
+    # Expose config so you can inspect Airflow settings in the UI.
+    # -------------------------------------------------------------------------
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
-    AIRFLOW__WEBSERVER__SECRET_KEY: "bronze_pipeline_local_secret"
+    AIRFLOW__WEBSERVER__SECRET_KEY: "energy_pipeline_local_dev"
+    AIRFLOW__WEBSERVER__WORKERS: "1"
 
-    # --- Logging -------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Logging
+    # -------------------------------------------------------------------------
     AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
     AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
 
-    # --- SMTP (uncomment and fill to enable email alerts on failure) ---------
+    # -------------------------------------------------------------------------
+    # SMTP alerts (disabled by default — uncomment to enable)
+    # -------------------------------------------------------------------------
     # AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com
     # AIRFLOW__SMTP__SMTP_PORT: "587"
     # AIRFLOW__SMTP__SMTP_USER: you@gmail.com
@@ -39,89 +50,81 @@ x-airflow-common: &airflow-common
     # AIRFLOW__SMTP__SMTP_MAIL_FROM: you@gmail.com
 
     # =========================================================================
-    # PROJECT-SPECIFIC ENVIRONMENT VARIABLES
-    # Every path and config value read by bronze_pipeline_dag.py lives here.
-    # Change a value once here — it propagates to all tasks automatically.
+    # PROJECT ENVIRONMENT VARIABLES
+    # Read by airflow/config/environment.py, runners/run_bronze.py,
+    # and bronze/observer/db_pool.py.
+    # Change a path or credential here — all tasks pick it up automatically.
     # =========================================================================
 
+    # --- Project root --------------------------------------------------------
+    # All path resolution inside the pipeline uses this as the anchor.
+    # Matches the bind mount below: project root → /opt/airflow
+    PROJECT_ROOT: /opt/airflow
+
     # --- Extraction ----------------------------------------------------------
-    # Path to api_config.json inside the container.
-    # extraction/ is mounted at /opt/airflow/extraction (see volumes below).
+    # api_config.json is read by extraction/runner.run_bronze_ingestion()
     EXTRACTION_API_CONFIG_PATH: /opt/airflow/extraction/api_config.json
 
-    # --- Contract ------------------------------------------------------------
-    # Where finalise_contract writes the finished contract JSON.
-    # bronze_metadata/ is mounted at /opt/airflow/bronze_metadata.
+    # --- Bronze contract -----------------------------------------------------
+    # Written by extraction/runner.py, read by validate_contract task
+    # and BronzeLayerOrchestrator
     BRONZE_CONTRACT_PATH: /opt/airflow/bronze/bronze_metadata/bronze_ingestion_contract.json
 
     # --- Databricks ----------------------------------------------------------
+    # Read by bronze/databricks_client.DatabricksSQLClient via configparser
     DATABRICKS_CFG_PATH: /opt/airflow/databricks/databricks.cfg
     DATABRICKS_CATALOG: main
     DATABRICKS_SCHEMA: bronze
 
-    # Staging root for parquet files downloaded during ingest phase
+    # Staging root for downloaded parquet files (local to the container)
     BRONZE_STAGING_ROOT: /tmp/bronze_staging
 
     # Delta table root — resolved at SQL execution time on Databricks DBFS
     BRONZE_DELTA_ROOT: /mnt/delta/bronze
 
-    # --- DAG schedule --------------------------------------------------------
-    # Cron: daily at 01:00 UTC. Override to change frequency.
-    BRONZE_PIPELINE_SCHEDULE: "0 1 * * *"
-
     # --- dbt -----------------------------------------------------------------
+    # Both point at dbt_project/ — profiles.yml and dbt_project.yml live there
     DBT_PROJECT_DIR: /opt/airflow/dbt_project
     DBT_PROFILES_DIR: /opt/airflow/dbt_project
 
-    # --- Observer / control plane --------------------------------------------
-    # Connection string used by bronze/observer modules to write audit + metrics
-    BRONZE_CONTROL_CONN: postgresql+psycopg2://airflow:airflow@postgres/bronze_control
+    # --- Silver --------------------------------------------------------------
+    SILVER_CONTRACT_PATH: /opt/airflow/silver/silver_contract.json
 
-    # --- Python path ---------------------------------------------------------
-    # Makes both packages importable inside the container:
-    #   from bronze.ingestion.bronze_orchestrator import BronzeLayerOrchestrator
-    #   from extraction.resolver        import HuggingFaceDatasetResolver
-    #   from extraction.validator       import ParquetValidator
-    # Both bronze/ and extraction/ are mounted under /opt/airflow/
+    # --- PostgreSQL control plane --------------------------------------------
+    # Read by bronze/observer/db_pool.py to build the connection pool.
+    # Env var names must match exactly: PG_HOST, PG_PORT, PG_DB, PG_USER, PG_PASSWORD
+    PG_HOST: postgres
+    PG_PORT: "5432"
+    PG_DB: bronze_control
+    PG_USER: airflow
+    PG_PASSWORD: energydb
+
     PYTHONPATH: /opt/airflow
 
   # ---------------------------------------------------------------------------
-  # VOLUMES
-  # Bind mounts — edits on your host are immediately live inside the container.
+  # VOLUMES — bind mounts so host edits are live in the container immediately.
+  # All paths are relative to the project root (where this file lives).
   # ---------------------------------------------------------------------------
   volumes:
-    # DAGs: pipeline definitions
+    # Airflow DAGs, logs, plugins
     - ./airflow/dags:/opt/airflow/dags
-
-    # Logs: task logs, visible on host for debugging
     - ./airflow/logs:/opt/airflow/logs
-
-    # Plugins: custom operators, hooks, sensors
     - ./airflow/plugins:/opt/airflow/plugins
-
-    # Requirements: installed at container startup
     - ./airflow/requirements.txt:/requirements.txt
 
-    # Extraction module — Phase 1 of the pipeline
-    # Importable as: from extraction.resolver import HuggingFaceDatasetResolver
-    # Includes api_config.json, resolver.py, runner.py, validator.py
-    - ./extraction:/opt/airflow/extraction
-
-    # Bronze module — Phases 2 + 3 of the pipeline
-    # Importable as: from bronze.ingestion.bronze_orchestrator import BronzeLayerOrchestrator
+    # Project packages — each mounted separately so imports are clean
     - ./bronze:/opt/airflow/bronze
-
-    # Contract output directory — written by finalise_contract, read by bronze
-    - ./bronze/bronze_metadata:/opt/airflow/bronze/bronze_metadata
-
-    # Databricks credentials: workspace_url, token, warehouse_id
-    - ./databricks:/opt/airflow/databricks
-
-    # dbt project: models, profiles, packages, dbt_project.yml
+    - ./extraction:/opt/airflow/extraction
+    - ./silver:/opt/airflow/silver
+    - ./runners:/opt/airflow/runners
     - ./dbt_project:/opt/airflow/dbt_project
 
-    # Runners: manual entry points (run_bronze.py etc.)
-    - ./runners:/opt/airflow/runners
+    # Data files
+    - ./bronze_metadata:/opt/airflow/bronze/bronze_metadata
+    - ./silver_contract.json:/opt/airflow/silver/silver_contract.json
+
+    # Credentials — gitignored on host, mounted read-only in container
+    - ./databricks:/opt/airflow/databricks:ro
 
   depends_on:
     postgres:
@@ -135,77 +138,75 @@ services:
   # 1. POSTGRES
   #
   #    One container, two logical databases:
-  #      airflow_db     → Airflow metadata (DAG runs, task states, XCom)
-  #      bronze_control → Bronze observability (audit + metrics tables)
+  #      airflow_db      → Airflow metadata (DAG runs, task states, XCom)
+  #      bronze_control  → Observability (bronze_ingestion_audit + metrics)
   #
-  #    postgres:15-alpine is ~80MB vs ~350MB for the default Debian image.
-  #
-  #    postgres/init_db.sql runs ONCE on the very first container start:
-  #      - Creates bronze_control database
-  #      - Creates bronze_ingestion_audit table
-  #      - Creates bronze_ingestion_metrics table
-  #      - Creates all indexes
+  #    postgres:15-alpine: ~80MB RAM vs ~350MB for the default Debian image.
+  #    postgres/init_db.sql runs ONCE on first boot and creates bronze_control
+  #    plus all observability tables and indexes.
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:15-alpine
-    container_name: bronze_postgres
+    container_name: energy_postgres
 
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow_db # Docker creates this automatically
+      POSTGRES_DB: airflow_db # created automatically by the image entrypoint
 
     volumes:
-      # Persistent data — survives container stop/start/restart
+      # Persistent named volume — data survives container stop/restart
       - postgres_data:/var/lib/postgresql/data
-
-      # Init script — all *.sql files in this folder run once on first boot
+      # Init script — all *.sql files in postgres/ run once on first boot
       - ./postgres:/docker-entrypoint-initdb.d/
 
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "airflow"]
+      test: ["CMD", "pg_isready", "-U", "airflow", "-d", "airflow_db"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
     ports:
-      # Expose so you can inspect with DBeaver / psql / TablePlus
+      # Expose for inspection with DBeaver / psql / TablePlus
       - "5432:5432"
 
     restart: unless-stopped
 
+    # RAM limit — Postgres needs very little for this workload
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
   # ---------------------------------------------------------------------------
   # 2. AIRFLOW INIT
   #
-  #    One-time job:
-  #      1. Installs airflow/requirements.txt (providers, dbt, psycopg2, pyarrow)
-  #      2. Runs Airflow DB schema migrations
+  #    One-time setup job. Run with:
+  #        docker-compose run --rm airflow-init
+  #
+  #    Does four things in sequence:
+  #      1. Installs Python packages from airflow/requirements.txt
+  #      2. Runs Airflow database migrations
   #      3. Creates the admin user (admin / admin)
   #      4. Registers bronze_control as a named Airflow connection
+  #         (available in DAGs via BaseHook.get_connection("bronze_control"))
   #
-  #    restart: "no" — never restarted after it exits successfully.
-  #    Re-run if needed: docker-compose run --rm airflow-init
+  #    restart: "no" — never restarted automatically after it exits.
   # ---------------------------------------------------------------------------
   airflow-init:
     <<: *airflow-common
-    container_name: bronze_airflow_init
+    container_name: energy_airflow_init
 
     command: >
       bash -c "
-        echo '================================================================' &&
-        echo 'AIRFLOW INIT — Installing Python requirements' &&
-        echo '================================================================' &&
+        echo '=== Installing Python requirements ===' &&
         pip install -r /requirements.txt --quiet --no-cache-dir &&
 
-        echo '================================================================' &&
-        echo 'AIRFLOW INIT — Running DB migrations' &&
-        echo '================================================================' &&
+        echo '=== Running Airflow DB migrations ===' &&
         airflow db migrate &&
 
-        echo '================================================================' &&
-        echo 'AIRFLOW INIT — Creating admin user' &&
-        echo '================================================================' &&
+        echo '=== Creating admin user ===' &&
         airflow users create \
           --username  admin \
           --password  admin \
@@ -215,9 +216,7 @@ services:
           --email     admin@local.dev \
         || echo 'Admin user already exists — skipping.' &&
 
-        echo '================================================================' &&
-        echo 'AIRFLOW INIT — Registering bronze_control Airflow connection' &&
-        echo '================================================================' &&
+        echo '=== Registering bronze_control Airflow connection ===' &&
         airflow connections add bronze_control_postgres \
           --conn-type     postgres \
           --conn-host     postgres \
@@ -227,9 +226,7 @@ services:
           --conn-port     5432 \
         || echo 'Connection already exists — skipping.' &&
 
-        echo '================================================================' &&
-        echo 'AIRFLOW INIT — Complete' &&
-        echo '================================================================'
+        echo '=== Init complete ==='
       "
 
     restart: "no"
@@ -237,12 +234,15 @@ services:
   # ---------------------------------------------------------------------------
   # 3. AIRFLOW SCHEDULER
   #
-  #    Parses DAGs and, with LocalExecutor, also executes tasks as subprocesses.
-  #    No separate worker container needed.
+  #    With LocalExecutor the scheduler also runs tasks as subprocesses —
+  #    no separate worker container is needed. This is what saves the most RAM.
+  #
+  #    pip install runs here too so the scheduler has all project dependencies
+  #    available when it spawns task subprocesses.
   # ---------------------------------------------------------------------------
   airflow-scheduler:
     <<: *airflow-common
-    container_name: bronze_airflow_scheduler
+    container_name: energy_airflow_scheduler
 
     command: >
       bash -c "
@@ -261,16 +261,16 @@ services:
 
     restart: unless-stopped
 
-  # ---------------------------------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          memory: 512M # scheduler + LocalExecutor task subprocesses
+
   # 4. AIRFLOW WEBSERVER
-  #
-  #    Serves the Airflow UI.
-  #    URL   : http://localhost:8080
-  #    Login : admin / admin
-  # ---------------------------------------------------------------------------
+
   airflow-webserver:
     <<: *airflow-common
-    container_name: bronze_airflow_webserver
+    container_name: energy_airflow_webserver
 
     command: >
       bash -c "
@@ -290,47 +290,16 @@ services:
 
     restart: unless-stopped
 
+    deploy:
+      resources:
+        limits:
+          memory: 256M # 1 gunicorn worker + UI assets
+
 # =============================================================================
 # VOLUMES
-# postgres_data is a named volume — survives container restarts.
+# postgres_data is a named volume — survives container stop/restart/rebuild.
 # Everything else uses bind mounts so host edits are live in the container.
 # =============================================================================
 volumes:
   postgres_data:
     driver: local
-
-# =============================================================================
-# FIRST-TIME STARTUP SEQUENCE
-# Run from the project root (C:.)
-#
-# Step 1 — Start Postgres
-#           init_db.sql runs here → creates bronze_control + tables
-#
-#   docker-compose up postgres -d
-#   docker-compose logs -f postgres
-#   (wait for: "database system is ready to accept connections")
-#
-# Step 2 — One-time Airflow initialisation
-#
-#   docker-compose run --rm airflow-init
-#
-# Step 3 — Start the pipeline services
-#
-#   docker-compose up airflow-scheduler airflow-webserver -d
-#
-# Step 4 — Open the UI
-#
-#   http://localhost:8080   login: admin / admin
-#
-# Step 5 — Trigger a manual run (optional)
-#
-#   docker-compose exec airflow-scheduler \
-#     airflow dags trigger bronze_pipeline
-#
-# ─────────────────────────────────────────────────────────────────────────────
-# Stop (keeps data):
-#   docker-compose down
-#
-# Full reset (wipes Postgres volume):
-#   docker-compose down -v
-# ==============================

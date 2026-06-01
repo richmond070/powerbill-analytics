@@ -205,12 +205,10 @@ services:
         airflow db migrate &&
 
         echo '=== Creating admin user ===' &&
-        airflow users create --username  admin --password  admin --firstname Admin --lastname  User --role Admin --email admin@local.dev 
-        || echo 'Admin user already exists — skipping.' &&
+        airflow users create --username  admin --password  admin --firstname Admin --lastname  User --role Admin --email admin@local.dev || true &&
 
         echo '=== Registering bronze_control Airflow connection ===' &&
-        airflow connections add bronze_control_postgres --conn-type     postgres --conn-host     postgres --conn-schema   bronze_control --conn-login    airflow --conn-password richard031 --conn-port 5432 
-        || echo 'Connection already exists — skipping.' &&
+        airflow connections add bronze_control_postgres --conn-type     postgres --conn-host     postgres --conn-schema   bronze_control --conn-login airflow --conn-password richard031 --conn-port 5432 || true &&
 
         echo '=== Init complete ==='
       "

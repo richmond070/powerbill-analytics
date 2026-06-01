@@ -23,7 +23,7 @@ x-airflow-common: &airflow-common
     # Uses airflow_db created automatically by POSTGRES_DB below.
     # -------------------------------------------------------------------------
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
-      postgresql+psycopg2://airflow:energydb@postgres/airflow_db
+      postgresql+psycopg2://airflow:richard031@postgres/airflow_db
 
     # -------------------------------------------------------------------------
     # Webserver
@@ -97,7 +97,7 @@ x-airflow-common: &airflow-common
     PG_PORT: "5432"
     PG_DB: bronze_control
     PG_USER: airflow
-    PG_PASSWORD: energydb
+    PG_PASSWORD: richard031
 
     PYTHONPATH: /opt/airflow
 
@@ -120,8 +120,8 @@ x-airflow-common: &airflow-common
     - ./dbt_project:/opt/airflow/dbt_project
 
     # Data files
-    - ./bronze_metadata:/opt/airflow/bronze/bronze_metadata
-    - ./silver_contract.json:/opt/airflow/silver/silver_contract.json
+    #- ./bronze_metadata:/opt/airflow/bronze/bronze_metadata
+    #- ./silver_contract.json:/opt/airflow/silver/silver_contract.json
 
     # Credentials — gitignored on host, mounted read-only in container
     - ./databricks:/opt/airflow/databricks:ro
@@ -151,7 +151,7 @@ services:
 
     environment:
       POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
+      POSTGRES_PASSWORD: richard031
       POSTGRES_DB: airflow_db # created automatically by the image entrypoint
 
     volumes:
@@ -222,7 +222,7 @@ services:
           --conn-host     postgres \
           --conn-schema   bronze_control \
           --conn-login    airflow \
-          --conn-password airflow \
+          --conn-password richard031 \
           --conn-port     5432 \
         || echo 'Connection already exists — skipping.' &&
 

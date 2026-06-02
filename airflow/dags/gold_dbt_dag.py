@@ -10,9 +10,9 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from airflow.config.default_args import GOLD_DEFAULT_ARGS
-from airflow.config.schedules import GOLD_SCHEDULE
-from airflow.config.environment import validate_environment, DBT_PROJECT_DIR
+from airflow.dag_config.default_args import GOLD_DEFAULT_ARGS
+from airflow.dag_config.schedules import GOLD_SCHEDULE
+from airflow.dag_config.environment import validate_environment, DBT_PROJECT_DIR
 from airflow.operators.dbt_operator import DbtRunOperator
 
 with DAG(

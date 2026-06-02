@@ -7,3 +7,13 @@ psycopg2-binary==2.9.9
 requests==2.31.0
 pyyaml==6.0
 python-dotenv==1.0.1
+pyarrow
+fastparquet
+aiohttp
+aiofiles
+black
+flake8
+autopep8
+
+dbt-databricks==1.8.2
+databricks-sql-connector>=2.0.0,<3.0.0

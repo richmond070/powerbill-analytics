@@ -10,8 +10,8 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from airflow.config.default_args import DEFAULT_ARGS
-from airflow.config.schedules import PIPELINE_SCHEDULE
+from airflow.dag_config.default_args import DEFAULT_ARGS
+from airflow.dag_config.schedules import PIPELINE_SCHEDULE
 
 
 with DAG(

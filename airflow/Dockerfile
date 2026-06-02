@@ -11,7 +11,7 @@ USER airflow
 
 COPY requirements.txt /requirements.txt
 
-RUN pip install -- no-cache-dir --default-timeout=300 -r  /requirements.txt
+RUN pip install --no-cache-dir --default-timeout=300 -r  /requirements.txt
 
 
 ENV PYTHONPATH=/opt/airflow \

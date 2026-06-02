@@ -9,9 +9,9 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from airflow.config.default_args import BRONZE_DEFAULT_ARGS
-from airflow.config.schedules import SCHEDULES
-from airflow.config.environment import validate_environment
+from airflow.dag_config.default_args import BRONZE_DEFAULT_ARGS
+from airflow.dag_config.schedules import SCHEDULES
+from airflow.dag_config.environment import validate_environment
 
 from airflow.utils.contract_validators import validate_bronze_contract
 from airflow.utils.quality_checks import bronze_quality_gate

@@ -4,7 +4,8 @@
 # Change a value once here — it propagates to all three services.
 # =============================================================================
 x-airflow-common: &airflow-common
-  image: apache/airflow:2.9.0-python3.11
+  build:
+    context: ./airflow
 
   environment:
     # -------------------------------------------------------------------------
@@ -38,25 +39,6 @@ x-airflow-common: &airflow-common
     AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
     AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
 
-    # -------------------------------------------------------------------------
-    # SMTP alerts (disabled by default — uncomment to enable)
-    # -------------------------------------------------------------------------
-    # AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com
-    # AIRFLOW__SMTP__SMTP_PORT: "587"
-    # AIRFLOW__SMTP__SMTP_USER: you@gmail.com
-    # AIRFLOW__SMTP__SMTP_PASSWORD: yourpassword
-    # AIRFLOW__SMTP__SMTP_MAIL_FROM: you@gmail.com
-
-    # =========================================================================
-    # PROJECT ENVIRONMENT VARIABLES
-    # Read by airflow/config/environment.py, runners/run_bronze.py,
-    # and bronze/observer/db_pool.py.
-    # Change a path or credential here — all tasks pick it up automatically.
-    # =========================================================================
-
-    # --- Project root --------------------------------------------------------
-    # All path resolution inside the pipeline uses this as the anchor.
-    # Matches the bind mount below: project root → /opt/airflow
     PROJECT_ROOT: /opt/airflow
 
     # --- Extraction ----------------------------------------------------------
@@ -132,17 +114,6 @@ x-airflow-common: &airflow-common
 # SERVICES
 # =============================================================================
 services:
-  # ---------------------------------------------------------------------------
-  # 1. POSTGRES
-  #
-  #    One container, two logical databases:
-  #      airflow_db      → Airflow metadata (DAG runs, task states, XCom)
-  #      bronze_control  → Observability (bronze_ingestion_audit + metrics)
-  #
-  #    postgres:15-alpine: ~80MB RAM vs ~350MB for the default Debian image.
-  #    postgres/init_db.sql runs ONCE on first boot and creates bronze_control
-  #    plus all observability tables and indexes.
-  # ---------------------------------------------------------------------------
   postgres:
     image: postgres:15-alpine
     container_name: energy_postgres
@@ -177,30 +148,12 @@ services:
         limits:
           memory: 256M
 
-  # ---------------------------------------------------------------------------
-  # 2. AIRFLOW INIT
-  #
-  #    One-time setup job. Run with:
-  #        docker-compose run --rm airflow-init
-  #
-  #    Does four things in sequence:
-  #      1. Installs Python packages from airflow/requirements.txt
-  #      2. Runs Airflow database migrations
-  #      3. Creates the admin user (admin / admin)
-  #      4. Registers bronze_control as a named Airflow connection
-  #         (available in DAGs via BaseHook.get_connection("bronze_control"))
-  #
-  #    restart: "no" — never restarted automatically after it exits.
-  # ---------------------------------------------------------------------------
   airflow-init:
     <<: *airflow-common
     container_name: energy_airflow_init
 
     command: |
       bash -c "
-        echo '=== Installing Python requirements ===' &&
-        pip install -r /requirements.txt --quiet --no-cache-dir &&
-
         echo '=== Running Airflow DB migrations ===' &&
         airflow db migrate &&
 
@@ -215,24 +168,11 @@ services:
 
     restart: "no"
 
-  # ---------------------------------------------------------------------------
-  # 3. AIRFLOW SCHEDULER
-  #
-  #    With LocalExecutor the scheduler also runs tasks as subprocesses —
-  #    no separate worker container is needed. This is what saves the most RAM.
-  #
-  #    pip install runs here too so the scheduler has all project dependencies
-  #    available when it spawns task subprocesses.
-  # ---------------------------------------------------------------------------
   airflow-scheduler:
     <<: *airflow-common
     container_name: energy_airflow_scheduler
 
-    command: >
-      bash -c "
-        pip install -r /requirements.txt --quiet --no-cache-dir &&
-        airflow scheduler
-      "
+    command: airflow scheduler
 
     healthcheck:
       test: >
@@ -250,17 +190,16 @@ services:
         limits:
           memory: 512M # scheduler + LocalExecutor task subprocesses
 
+    depends_on:
+      - airflow-init
+
   # 4. AIRFLOW WEBSERVER
 
   airflow-webserver:
     <<: *airflow-common
     container_name: energy_airflow_webserver
 
-    command: >
-      bash -c "
-        pip install -r /requirements.txt --quiet --no-cache-dir &&
-        airflow webserver
-      "
+    command: webserver
 
     ports:
       - "8080:8080"
@@ -278,6 +217,9 @@ services:
       resources:
         limits:
           memory: 256M # 1 gunicorn worker + UI assets
+
+    depends_on:
+      - airflow-init
 
 # =============================================================================
 # VOLUMES

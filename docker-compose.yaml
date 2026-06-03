@@ -91,6 +91,8 @@ x-airflow-common: &airflow-common
     - ./airflow/logs:/opt/airflow/logs
     - ./airflow/plugins:/opt/airflow/plugins
     - ./airflow/dag_config:/opt/airflow/dag_config
+    - ./airflow/operators:/opt/airflow/operators
+    - ./airflow/utils:/opt/airflow/utils
     - ./airflow/requirements.txt:/requirements.txt
 
     # Project packages — each mounted separately so imports are clean

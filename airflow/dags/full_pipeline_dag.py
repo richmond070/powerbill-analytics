@@ -11,13 +11,13 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from dag_config.default_args import DEFAULT_ARGS
-from dag_config.schedules import PIPELINE_SCHEDULE
+from dag_config.schedules import SCHEDULES
 
 
 with DAG(
     dag_id="full_pipeline_dag",
     default_args=DEFAULT_ARGS,
-    schedule=PIPELINE_SCHEDULE,
+    schedule=SCHEDULES,
     start_date=days_ago(1),
     catchup=False,
     tags=["orchestration", "pipeline", "master"],

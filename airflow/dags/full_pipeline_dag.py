@@ -17,7 +17,7 @@ from dag_config.schedules import SCHEDULES
 with DAG(
     dag_id="full_pipeline_dag",
     default_args=DEFAULT_ARGS,
-    schedule=SCHEDULES,
+    schedule=SCHEDULES["full_pipeline_dag"],
     start_date=days_ago(1),
     catchup=False,
     tags=["orchestration", "pipeline", "master"],

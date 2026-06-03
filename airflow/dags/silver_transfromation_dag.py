@@ -9,10 +9,10 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from airflow.dag_config.default_args import SILVER_DEFAULT_ARGS
-from airflow.dag_config.schedules import SILVER_SCHEDULE
-from airflow.dag_config.environment import SILVER_CONTRACT_PATH
-from airflow.operators.silver_operator import SilverTransformationOperator
+from dag_config.default_args import SILVER_DEFAULT_ARGS
+from dag_config.schedules import SILVER_SCHEDULE
+from dag_config.environment import SILVER_CONTRACT_PATH
+from operators.sliver_operator import SilverTransformationOperator
 
 # Silver datasets from silver_contract.json — 3 datasets only
 SILVER_DATASETS =str(

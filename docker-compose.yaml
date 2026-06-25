@@ -16,6 +16,9 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__CORE__FERNET_KEY: "" # set a real key before production
+    AIRFLOW__CORE__PARALLELISM: "2"
+    AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "2"
+    AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_LOOP: "1"
 
     # -------------------------------------------------------------------------
     # Metadata database
@@ -32,6 +35,14 @@ x-airflow-common: &airflow-common
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
     AIRFLOW__WEBSERVER__SECRET_KEY: "energy_pipeline_local_dev"
     AIRFLOW__WEBSERVER__WORKERS: "1"
+    AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: "300"
+    AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT: "300"
+
+    # -------------------------------------------------------------------------
+    # Scheduler optimization for low RAM
+    # -------------------------------------------------------------------------
+    AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: "60"
+    AIRFLOW__SCHEDULER__PARALLELISM: "2"
 
     # -------------------------------------------------------------------------
     # Logging
@@ -149,7 +160,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 128M
 
   airflow-init:
     <<: *airflow-common
@@ -191,7 +202,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M # scheduler + LocalExecutor task subprocesses
+          memory: 768M # scheduler + LocalExecutor task subprocesses (optimized for 4GB host RAM)
 
     depends_on:
       - airflow-init
@@ -219,7 +230,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M # 1 gunicorn worker + UI assets
+          memory: 512M # 1 gunicorn worker + UI assets (optimized for 4GB host RAM)
 
     depends_on:
       - airflow-init

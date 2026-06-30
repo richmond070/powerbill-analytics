@@ -13,7 +13,12 @@
 5. [Testing Overview](#5-testing-overview)
 6. [Observability System](#6-observability-system)
 
+---
+
 ## System Architecture 
+
+<img width="600" height="1095" alt="system-design" src="https://github.com/user-attachments/assets/42b861f5-5222-4c9d-96d7-69accefa8569" />
+
 
 
 ---

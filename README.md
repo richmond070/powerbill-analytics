@@ -17,7 +17,8 @@
 
 ## System Architecture 
 
-<img width="600" height="1095" alt="system-design" src="https://github.com/user-attachments/assets/42b861f5-5222-4c9d-96d7-69accefa8569" />
+<img width="1520" height="1195" alt="system-design" src="https://github.com/user-attachments/assets/5c576308-6451-47c6-b059-8d9808f6223e" />
+
 
 
 

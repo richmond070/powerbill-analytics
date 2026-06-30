@@ -13,6 +13,9 @@
 5. [Testing Overview](#5-testing-overview)
 6. [Observability System](#6-observability-system)
 
+## System Architecture 
+
+
 ---
 
 ## 1. Project Overview
@@ -22,7 +25,7 @@ This pipeline ingests six raw datasets from the Nigerian energy sector — spann
 The pipeline is built in layers following the **Medallion Architecture** pattern:
 
 ```
-Extraction  →  Bronze  →  Silver (planned)  →  Gold (planned)
+Extraction  →  Bronze  →  Silver  →  Gold
   (raw API)    (ingest)    (clean/model)         (serve)
 ```
 

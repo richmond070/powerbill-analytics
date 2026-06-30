@@ -25,8 +25,8 @@ This pipeline ingests six raw datasets from the Nigerian energy sector — spann
 The pipeline is built in layers following the **Medallion Architecture** pattern:
 
 ```
-Extraction  →  Bronze  →  Silver  →  Gold
-  (raw API)    (ingest)    (clean/model)         (serve)
+Extraction  →  Bronze  →  Silver     →      Gold
+  (raw API)    (ingest)   (clean/model)  (serve)
 ```
 
 Each layer has a clearly defined responsibility, a contract with the layer above it, and independent observability. This document covers the **Extraction**, **Bronze**, **Silver** and **Gold** layers in full.
